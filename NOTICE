@@ -1,0 +1,11 @@
+Logos Wiki
+Licensed under the Apache License, Version 2.0.
+
+public/skin/vector.css, public/skin/interface.css and public/skin/images/ are
+derived from MediaWiki and the Vector skin (https://www.mediawiki.org),
+GPL-2.0-or-later. Files under public/skin/icons/ are from the Codex and OOUI
+icon sets (https://doc.wikimedia.org/codex/), MIT. Distributions that include
+these files are subject to those licenses.
+
+public/assets/lan-logo.svg and public/assets/lan-wordmark.png belong to the
+operator of the original Local Area Network wiki.

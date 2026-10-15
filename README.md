@@ -1,0 +1,50 @@
+# Logos Wiki
+
+A MediaWiki-compatible wiki (Vector 2022 skin, wikitext, history, diffs, special pages) whose data lives on the [Logos](https://logos.co) stack.
+
+- Every change is an ed25519-signed event. A page's history is derived by replaying the event log.
+- Accounts are keypairs derived in the browser from name and password with scrypt. The server never sees the password.
+- Logos Storage holds uploaded files and periodic snapshots of the event log.
+- Logos Delivery relays new events and snapshot announcements between instances on a shared content topic.
+- Anyone can create an account and edit their own user pages. The admin decides who may edit everything else at `Special:TrustedEditors`.
+
+## Run
+
+Requirements: Node 22 and the Logos CLI daemon (`logosctl`, testnet v0.3) with `storage_module` and `delivery_module` installed.
+
+```sh
+npm install
+npm run admin-key                 # prompts for the admin name and password, prints WIKI_ADMIN_KEY
+export WIKI_ADMIN_KEY=<key>
+logosctl daemon start -d
+npm run build && npm start        # http://localhost:3000
+npm run import                    # optional: copy pages, history and files from the source wiki, signed as the admin
+```
+
+Then log in with the same admin name and password. Without the daemon, set `LOGOS_DISABLED=1`; the wiki then runs from the local event log only.
+
+## Configuration
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `WIKI_ADMIN_KEY` | none | Admin public key (hex) |
+| `WIKI_SITENAME` | `Local Area Network` | Site name |
+| `WIKI_DATA` | `./data` | Event log, snapshot pointer, file cache |
+| `WIKI_TOPIC` | `/logos-wiki/1/lan/json` | Delivery content topic shared by instances |
+| `WIKI_SNAPSHOT_CID` | none | Bootstrap a new instance from a Storage snapshot |
+| `WIKI_SERVER` | `http://localhost:3000` | Target of `npm run import` |
+| `LOGOS_PRESET` | `logos.dev` | Delivery network preset |
+| `LOGOS_DISABLED` | unset | `1` disables Storage and Delivery |
+| `LOGOSCTL` | `logosctl` | Path to the Logos CLI |
+
+## Develop
+
+```sh
+npm test
+npm run lint
+npx tsc --noEmit
+```
+
+## License
+
+Apache-2.0. The skin assets are third-party; see [NOTICE](NOTICE).
