@@ -30,6 +30,7 @@ export type StoredFile = {
 export const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 const CID = /^z[1-9A-HJ-NP-Za-km-z]{20,100}$/;
 const MAX_FILE = 50 * 1024 * 1024;
+const MAX_PENDING = 1000;
 
 const order = (a: Verified, b: Verified) => a.ts - b.ts || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 const isInt = (n: unknown, max: number): n is number => Number.isSafeInteger(n) && (n as number) >= 0 && (n as number) <= max;
@@ -58,23 +59,31 @@ export class Wiki {
   files = new Map<string, StoredFile>();
   reserved = new Set<string>();
   private ids = new Set<string>();
+  private pending = new Map<string, Verified>();
+  readonly admin: string;
 
-  constructor(readonly admin = ADMIN_KEY) {}
+  constructor(admin = ADMIN_KEY) {
+    this.admin = admin;
+  }
 
   has(id: string) {
     return this.ids.has(id);
   }
 
+  isPending(id: string) {
+    return this.pending.has(id);
+  }
+
   add(event: Verified) {
-    if (this.ids.has(event.id)) return false;
+    if (this.ids.has(event.id) || this.pending.has(event.id)) return false;
     const last = this.log.at(-1);
     const reserves = "as" in event && event.as && !this.reserved.has(event.as);
     if ((!last || order(last, event) < 0) && !reserves) {
-      if (!this.apply(event)) return false;
-      this.keep(event);
+      if (!this.attempt(event)) return false;
+      this.drain();
       return true;
     }
-    this.rebuild([...this.log, event]);
+    this.rebuild([...this.log, ...this.pending.values(), event]);
     return this.ids.has(event.id);
   }
 
@@ -88,9 +97,10 @@ export class Wiki {
       trusted: [],
       files: new Map(),
       ids: new Set(),
+      pending: new Map(),
     });
     this.reserved = new Set(events.flatMap((e) => ("as" in e && e.as && e.by === this.admin ? [e.as] : [])));
-    for (const event of [...events].sort(order)) if (!this.ids.has(event.id) && this.apply(event)) this.keep(event);
+    for (const event of [...events].sort(order)) if (!this.ids.has(event.id)) this.attempt(event);
   }
 
   canEdit(key: string, title: Title) {
@@ -128,6 +138,34 @@ export class Wiki {
   private keep(event: Verified) {
     this.log.push(event);
     this.ids.add(event.id);
+  }
+
+  private attempt(event: Verified) {
+    if (this.apply(event)) {
+      this.pending.delete(event.id);
+      this.keep(event);
+      return true;
+    }
+    if (event.t !== "account" && !this.names.has(event.by)) this.park(event);
+    return false;
+  }
+
+  private park(event: Verified) {
+    this.pending.set(event.id, event);
+    if (this.pending.size > MAX_PENDING) this.pending.delete(this.pending.keys().next().value!);
+  }
+
+  private drain() {
+    for (let progress = true; progress; ) {
+      progress = false;
+      for (const event of [...this.pending.values()].sort(order)) {
+        if (order(this.log.at(-1)!, event) < 0 && this.apply(event)) {
+          this.pending.delete(event.id);
+          this.keep(event);
+          progress = true;
+        }
+      }
+    }
   }
 
   private author(event: Verified & { as?: string }) {

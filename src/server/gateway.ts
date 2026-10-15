@@ -19,6 +19,7 @@ class Gateway {
   version = 0;
   status: Status = { delivery: "off", storage: "off", snapshot: null, error: null };
   private envelopes = new Map<string, Envelope>();
+  private waiting = new Map<string, Envelope>();
   private seenSnapshots = new Set<string>();
   private snapshotVersion = -1;
 
@@ -33,11 +34,25 @@ class Gateway {
 
   ingest(envelope: unknown, relay: boolean) {
     const event = verify(envelope);
-    if (!event || !this.wiki.add(event)) return null;
-    this.remember(event, envelope as Envelope);
-    void appendFile(LOG, `${JSON.stringify(this.envelopes.get(event.id))}\n`);
+    if (!event || this.wiki.has(event.id)) return null;
+    const { data, sig } = envelope as Envelope;
+    this.waiting.set(event.id, { data, sig });
+    const accepted = this.wiki.add(event);
+    this.settle();
+    if (!accepted) return null;
     if (relay && this.status.delivery === "online") send(JSON.stringify(this.envelopes.get(event.id))).catch((e) => this.fail(e));
     return event;
+  }
+
+  private settle() {
+    for (const [id, envelope] of this.waiting) {
+      if (this.wiki.has(id)) {
+        this.envelopes.set(id, envelope);
+        this.version++;
+        void appendFile(LOG, `${JSON.stringify(envelope)}\n`);
+      }
+      if (!this.wiki.isPending(id)) this.waiting.delete(id);
+    }
   }
 
   async storeFile(path: string) {
