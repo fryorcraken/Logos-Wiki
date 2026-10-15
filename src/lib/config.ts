@@ -1,0 +1,10 @@
+export const SITENAME = process.env.WIKI_SITENAME ?? "Local Area Network";
+export const MAIN_PAGE = "Main Page";
+export const ADMIN_KEY = (process.env.WIKI_ADMIN_KEY ?? "").toLowerCase();
+export const TOPIC = process.env.WIKI_TOPIC ?? "/logos-wiki/1/lan/json";
+export const PRESET = process.env.LOGOS_PRESET ?? "logos.test";
+export const DATA_DIR = process.env.WIKI_DATA ?? `${process.cwd()}/data`;
+export const LOGOSCTL = process.env.LOGOSCTL ?? "logosctl";
+export const LOGOS_ENABLED = process.env.LOGOS_DISABLED !== "1";
+export const SNAPSHOT_CID = process.env.WIKI_SNAPSHOT_CID ?? "";
+export const MAX_TEXT = 120_000;
