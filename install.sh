@@ -47,13 +47,32 @@ install_logosctl() {
   rm -rf "$tmp"
 }
 
-start_logos() {
-  [ "$(uname -s)" = Linux ] && [ ! -e /dev/fuse ] && export APPIMAGE_EXTRACT_AND_RUN=1
-  logosctl status >/dev/null 2>&1 || logosctl daemon start -d
+MODULES="
+storage_module 3.0.2 49accbb8e538bc13bc910d3857e4caffac53da079e72fced0ecc9695d380923a
+delivery_module 0.3.2 9b856418fcf816961f1118f34b395bb6a399e5523166be51f4eca6a7aaf76867
+libp2p_module 1.1.0 28f296e1f4cdd349c672600077c6e39ab54fc439d49c965b6e35e3446844fd4c
+liblogos_rln_module 0.12.0 fed1bdf371a37e25ad335d59d8914a5d6016d78de8ecf48cd7b6fb4b9f65bc8a
+liblogos_lez_rln_module 5.1.0 7317c72e3848549c00a33fb3b0ddfd29d4cab41a437d755a4681883dfd49707f
+"
+
+install_modules() {
   installed="$(logosctl --json package ls)"
-  for module in storage_module delivery_module; do
-    echo "$installed" | grep -q "\"name\":\"$module\"" || logosctl install "$module"
+  tmp="$(mktemp -d)"
+  echo "$MODULES" | while read -r name version sum; do
+    [ -n "$name" ] || continue
+    echo "$installed" | grep -q "\"name\":\"$name\"" && continue
+    file="$tmp/$name-$version.lgx"
+    curl -fsSL -o "$file" "https://github.com/logos-co/logos-modules-release/releases/download/$name-v$version/$name-$version.lgx"
+    [ "$(sha256 "$file")" = "$sum" ] || die "$name checksum mismatch"
   done
+  if ls "$tmp"/*.lgx >/dev/null 2>&1; then logosctl install --dir "$tmp" -y; fi
+  rm -rf "$tmp"
+}
+
+start_logos() {
+  if [ "$(uname -s)" = Linux ] && [ ! -e /dev/fuse ]; then export APPIMAGE_EXTRACT_AND_RUN=1; fi
+  logosctl status >/dev/null 2>&1 || logosctl daemon start -d
+  install_modules
 }
 
 fetch_app() {
@@ -80,6 +99,7 @@ configure() {
 build() {
   cd "$DIR"
   npm ci --no-audit --no-fund
+  configure
   npm run build
 }
 
@@ -112,7 +132,6 @@ main() {
   install_logosctl
   start_logos
   fetch_app
-  configure
   build
   echo "To copy the original wiki once it is running: cd $DIR && npm run import"
   if [ "${LOGOS_WIKI_SERVICE:-}" = 1 ]; then install_service; else echo "Starting on http://localhost:3000" && exec npm start; fi

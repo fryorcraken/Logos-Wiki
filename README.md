@@ -16,7 +16,7 @@ Requirements: Linux (x86_64 or arm64) or macOS (Apple Silicon), git, Node.js 22.
 curl -fsSL https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/install.sh | sh
 ```
 
-[`install.sh`](install.sh) installs `logosctl` 0.3.2 from the [official release](https://github.com/logos-co/logos-logoscore-cli/releases/tag/0.3.2) (SHA-256 checked), starts the Logos daemon with the Storage and Delivery modules, clones this repo to `~/logos-wiki`, asks for the admin name and password, builds, and starts the wiki on http://localhost:3000. Read it first if you prefer: `curl -fsSL <url> -o install.sh && less install.sh && sh install.sh`.
+[`install.sh`](install.sh) installs `logosctl` 0.3.2 from the [official release](https://github.com/logos-co/logos-logoscore-cli/releases/tag/0.3.2) and the tested Storage and Delivery module packages (all SHA-256 checked), starts the Logos daemon, clones this repo to `~/logos-wiki`, asks for the admin name and password, builds, and starts the wiki on http://localhost:3000. Read it first if you prefer: `curl -fsSL <url> -o install.sh && less install.sh && sh install.sh`.
 
 On a server, `LOGOS_WIKI_SERVICE=1` installs a systemd user service instead of running in the foreground. Rerunning the script updates the app and keeps the admin key in `~/logos-wiki/.env.local`.
 
