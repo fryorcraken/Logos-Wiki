@@ -4,13 +4,13 @@ import { deriveSeed, publicKey } from "../src/lib/events.ts";
 
 async function ask(question: string, hidden = false) {
   let muted = false;
-  const output = new Writable({ write: (chunk, _enc, done) => (muted || process.stdout.write(chunk), done()) });
+  const output = new Writable({ write: (chunk, _enc, done) => (muted || process.stderr.write(chunk), done()) });
   const rl = createInterface({ input: process.stdin, output, terminal: true });
   const answer = rl.question(question);
   muted = hidden;
   const value = await answer;
   rl.close();
-  if (hidden) process.stdout.write("\n");
+  if (hidden) process.stderr.write("\n");
   return value.trim();
 }
 
