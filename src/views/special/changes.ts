@@ -23,7 +23,9 @@ const size = (ctx: Context, id: number) => (id ? byteLength(ctx.wiki.revisions[i
 const delta = (ctx: Context, rev: Revision) => plusMinus(byteLength(rev.text) - size(ctx, rev.parent), byteLength(rev.text));
 const isCurrent = (ctx: Context, rev: Revision) => ctx.wiki.latest(rev.page)?.id === rev.id;
 const titleLink = (page: string) => `<a href="/wiki/${encodeTitle(page)}" class="mw-changeslist-title" title="${esc(page)}">${esc(page)}</a>`;
-const flags = (rev: Revision) => `${rev.parent ? "" : NEW_PAGE}${rev.minor ? MINOR : ""}`;
+const NBSP = "\u00a0";
+const flags = (rev: Revision) => `${rev.parent ? NBSP : NEW_PAGE}${rev.minor ? MINOR : NBSP}${NBSP}${NBSP}`;
+const contribFlags = (rev: Revision) => `${rev.parent ? "" : NEW_PAGE}${rev.minor ? MINOR : ""}`;
 const lineClass = (rev: Revision) =>
   `mw-changeslist-line mw-changeslist-${rev.parent ? "edit" : "new"} mw-changeslist-ns${parseTitle(rev.page)?.ns ?? 0}-${esc(dbKey(rev.page))} mw-changeslist-line-not-watched`;
 
@@ -53,14 +55,14 @@ function singleLine(ctx: Context, rev: Revision) {
     span("userTalkLink", ` ${userToolLinks(ctx.wiki, rev.user, true)}`),
     span("comment", comment(ctx.wiki, rev.summary, rev.page)),
   ].join("");
-  return `<table data-mw-revid="${rev.id}" class="${lineClass(rev)} mw-enhanced-rc"><tr><td>${HIGHLIGHTS}</td><td><span class="mw-enhancedchanges-arrow-space"></span></td><td class="mw-changeslist-line-prefix"></td><td class="mw-enhanced-rc" colspan="2">${flags(rev)}     ${formatTime(rev.ts)} </td><td class="mw-changeslist-line-inner" data-target-page="${esc(rev.page)}">${inner}</td></tr></table>`;
+  return `<table data-mw-revid="${rev.id}" class="${lineClass(rev)} mw-enhanced-rc"><tr><td>${HIGHLIGHTS}</td><td><span class="mw-enhancedchanges-arrow-space"></span></td><td class="mw-changeslist-line-prefix"></td><td class="mw-enhanced-rc" colspan="2">${flags(rev)}${NBSP}${formatTime(rev.ts)}${NBSP}</td><td class="mw-changeslist-line-inner" data-target-page="${esc(rev.page)}">${inner}</td></tr></table>`;
 }
 
 function nestedRow(ctx: Context, rev: Revision) {
   const cur = isCurrent(ctx, rev) ? "cur" : `<a class="mw-changeslist-diff-cur" href="${esc(actionUrl(rev.page, { diff: 0, oldid: rev.id }))}">cur</a>`;
   const prev = rev.parent ? a(rev.page, { diff: rev.id, oldid: rev.parent }, "prev", "mw-changeslist-diff") : "prev";
   const body = `<span class="mw-enhanced-rc-time">${a(rev.page, { oldid: rev.id }, formatTime(rev.ts))}</span> (${cur} | ${prev}) ${SEP} ${delta(ctx, rev)}‎ ${SEP} ${userLink(ctx.wiki, rev.user)} ${userToolLinks(ctx.wiki, rev.user, true)}${comment(ctx.wiki, rev.summary, rev.page)}`;
-  return `<tr class="mw-rcfilters-ui-highlights-enhanced-nested ${lineClass(rev)}" data-mw-revid="${rev.id}"><td></td><td></td><td></td><td class="mw-enhanced-rc">${flags(rev)}    &#160;</td><td>${HIGHLIGHTS.replace('highlights"', 'highlights mw-enhanced-rc-nested"')}</td><td class="mw-enhanced-rc-nested" data-target-page="${esc(rev.page)}">${body}</td></tr>`;
+  return `<tr class="mw-rcfilters-ui-highlights-enhanced-nested ${lineClass(rev)}" data-mw-revid="${rev.id}"><td></td><td></td><td></td><td class="mw-enhanced-rc">${flags(rev)}&#160;</td><td>${HIGHLIGHTS.replace('highlights"', 'highlights mw-enhanced-rc-nested"')}</td><td class="mw-enhanced-rc-nested" data-target-page="${esc(rev.page)}">${body}</td></tr>`;
 }
 
 function groupBlock(ctx: Context, revs: Revision[]) {
@@ -72,7 +74,7 @@ function groupBlock(ctx: Context, revs: Revision[]) {
   const total = byteLength(latest.text);
   const groupDiff = a(latest.page, { diff: latest.id, oldid: earliest.parent || earliest.id }, `${revs.length} changes`, "mw-changeslist-groupdiff");
   const links = `<span class="mw-changeslist-links"><span>${groupDiff}</span> <span>${a(latest.page, { action: "history" }, "history", "mw-changeslist-history")}</span></span>`;
-  const top = `<tr class="mw-rcfilters-ui-highlights-enhanced-toplevel"><td>${HIGHLIGHTS}</td><td><label for="${id}" class="mw-enhancedchanges-arrow mw-enhancedchanges-arrow-space"></label></td><td class="mw-changeslist-line-prefix"></td><td class="mw-enhanced-rc" colspan="2">${earliest.parent ? "" : NEW_PAGE}    &#160;${formatTime(latest.ts)}&#160;</td><td class="mw-changeslist-line-inner"> <span class="mw-title">${titleLink(latest.page)}</span>‎‎ ${links} ${SEP} ${plusMinus(total - size(ctx, earliest.parent), total)}‎ ${SEP} <span class="changedby">[${changedBy}]</span></td></tr>`;
+  const top = `<tr class="mw-rcfilters-ui-highlights-enhanced-toplevel"><td>${HIGHLIGHTS}</td><td><label for="${id}" class="mw-enhancedchanges-arrow mw-enhancedchanges-arrow-space"></label></td><td class="mw-changeslist-line-prefix"></td><td class="mw-enhanced-rc" colspan="2">${earliest.parent ? NBSP : NEW_PAGE}${NBSP.repeat(3)}&#160;${formatTime(latest.ts)}&#160;</td><td class="mw-changeslist-line-inner"> <span class="mw-title">${titleLink(latest.page)}</span>‎‎ ${links} ${SEP} ${plusMinus(total - size(ctx, earliest.parent), total)}‎ ${SEP} <span class="changedby">[${changedBy}]</span></td></tr>`;
   return `<div><input type="checkbox" class="mw-enhancedchanges-checkbox" id="${id}"><table class="mw-enhanced-rc ${lineClass(latest)}">${top}${revs.map((r) => nestedRow(ctx, r)).join("")}</table>\n</div>`;
 }
 
@@ -122,8 +124,7 @@ function recent(ctx: Context, query: Query, pages?: Set<string>) {
 export function recentChanges(ctx: Context, _sub: string, query: Query): ViewProps {
   const { revs, limit, days } = recent(ctx, query);
   const summary = `<div class="mw-specialpage-summary">\n<p>Track the most recent changes to the wiki on this page.\n</p>\n</div>`;
-  const head = `<div class="mw-rcfilters-head">${rcOptions(ctx, "Special:RecentChanges", query, limit, days)}</div>`;
-  return specialProps("Recent changes", summary + head + enhancedList(ctx, revs));
+  return specialProps("Recent changes", summary + rcOptions(ctx, "Special:RecentChanges", query, limit, days) + enhancedList(ctx, revs));
 }
 
 export function recentChangesLinked(ctx: Context, sub: string, query: Query): ViewProps {
@@ -146,7 +147,7 @@ function contribLine(ctx: Context, rev: Revision) {
   const title = `<a href="/wiki/${encodeTitle(rev.page)}" class="mw-contributions-title" title="${esc(rev.page)}">${esc(rev.page)}</a>`;
   return [
     `<li data-mw-revid="${rev.id}"${current ? ` class="mw-contributions-current"` : ""}><span class="mw-changeslist-time">${formatTime(rev.ts)}</span>${a(rev.page, { oldid: rev.id }, formatDateTime(rev.ts), "mw-changeslist-date")}`,
-    `<span class="mw-changeslist-links"><span>${diff}</span> <span>${a(rev.page, { action: "history" }, "hist", "mw-changeslist-history")}</span></span> ${SEP} ${delta(ctx, rev)}‎ ${SEP} ${flags(rev)}`,
+    `<span class="mw-changeslist-links"><span>${diff}</span> <span>${a(rev.page, { action: "history" }, "hist", "mw-changeslist-history")}</span></span> ${SEP} ${delta(ctx, rev)}‎ ${SEP} ${contribFlags(rev)}`,
     title,
     `‎${comment(ctx.wiki, rev.summary, rev.page, false)}`,
     current ? `<span class="mw-uctop">current</span>` : "",
@@ -154,31 +155,29 @@ function contribLine(ctx: Context, rev: Revision) {
   ].join("\n");
 }
 
-function pager(page: string, base: Record<string, string>, limit: number, next: number | null, newest: boolean) {
+function pager(page: string, base: Record<string, string>, limit: number, next: number | null, newest: boolean, oldest: boolean) {
   const nav = (params: Record<string, string | number>, text: string, cls: string) => `<a href="${esc(actionUrl(page, { ...base, ...params }))}" class="${cls}">${text}</a>`;
   const newer = newest ? `<span class="mw-prevlink">newer ${limit}</span>` : nav({ limit }, `newer ${limit}`, "mw-prevlink");
   const older = next ? nav({ offset: next, limit }, `older ${limit}`, "mw-nextlink") : `<span class="mw-nextlink">older ${limit}</span>`;
   const sizes = [20, 50, 100, 250, 500].map((n) => (n === limit ? `<span class="mw-numlink">${n}</span>` : nav({ limit: n }, String(n), "mw-numlink"))).join(" | ");
   const first = newest ? `<span class="mw-firstlink">newest</span>` : nav({ limit }, "newest", "mw-firstlink");
-  return `<div class="mw-pager-navigation-bar">(${first}) View (${newer}  |  ${older}) (${sizes})</div>`;
+  const last = oldest ? `<span class="mw-lastlink">oldest</span>` : nav({ dir: "prev", limit }, "oldest", "mw-lastlink");
+  return `<div class="mw-pager-navigation-bar">(${first} | ${last}) View (${newer}  |  ${older}) (${sizes})</div>`;
 }
 
-function collapsedForm(legend: string, fields: string[], hidden: Record<string, string>) {
-  const toggle = `<label for="mw-collapsible-toggle" class="mw-collapsible-toggle-label">${legend}</label>`;
-  return `<input type="checkbox" id="mw-collapsible-toggle" class="mw-collapsible-checkbox">${form("/index.php", toggle, fields, hidden).replace("oo-ui-fieldsetLayout'>", "oo-ui-fieldsetLayout mw-collapsibleFieldsetLayout mw-collapsible mw-collapsed'>").replace("oo-ui-fieldsetLayout-group'", "oo-ui-fieldsetLayout-group mw-collapsible-content'")}`;
-}
 
 export function contributions(ctx: Context, sub: string, query: Query): ViewProps {
   const name = (query.target ?? sub).replace(/_/g, " ").trim();
   const fields = [textField("IP address or username:", "target", name, "mw-target-user-or-ip"), namespaceField("Namespace:", query.namespace ?? "all", "all"), submitButton("Search")];
-  const top = collapsedForm("Search for contributions", fields, { title: "Special:Contributions" });
+  const top = form("/index.php", "Search for contributions", fields, { title: "Special:Contributions" }, true);
   if (!name) return specialProps("User contributions", top);
   const ns = query.namespace && query.namespace !== "all" ? Number(query.namespace) : null;
   const limit = Math.min(Number(query.limit) || 50, 500);
   const offset = Number(query.offset) || Infinity;
   const mine = ctx.wiki.revisions.filter((r) => r.user === name && (ns === null || parseTitle(r.page)?.ns === ns));
-  const page = mine.filter((r) => r.id < offset).reverse().slice(0, limit);
-  const next = page.length === limit && mine[0].id < page.at(-1)!.id ? page.at(-1)!.id : null;
+  const oldest = query.dir === "prev";
+  const page = oldest ? mine.slice(0, limit).reverse() : mine.filter((r) => r.id < offset).reverse().slice(0, limit);
+  const next = !oldest && page.length === limit && mine[0].id < page.at(-1)!.id ? page.at(-1)!.id : null;
   const known = users(ctx).find((u) => u.name === name);
   const tools = [
     link(ctx.wiki, `User talk:${name}`, "talk", { className: "mw-contributions-link-talk" }),
@@ -188,7 +187,7 @@ export function contributions(ctx: Context, sub: string, query: Query): ViewProp
   const info = known ? `<div class="mw-contributions-editor-info">A user with ${formatNumber(mine.length)} edit${mine.length === 1 ? "" : "s"}.${known.created ? ` Account created on ${formatDate(known.created)}.` : ""}</div>` : "";
   const subtitle = `<div class="mw-contributions-user-tools">For ${link(ctx.wiki, `User:${name}`, esc(name))} <span class="mw-changeslist-links">${tools.map((t) => `<span>${t}</span>`).join(" ")}</span></div>${info}`;
   const base = { target: name, ...(ns !== null ? { namespace: String(ns) } : {}) };
-  const nav = pager(`Special:Contributions/${name}`, base, limit, next, offset === Infinity);
+  const nav = pager(`Special:Contributions/${name}`, base, limit, next, offset === Infinity && !oldest, oldest || mine.length <= limit);
   const days = [...byDay(page, (r) => r.ts)].map(([day, revs], i) => `<h4 class="${i ? "" : "mw-index-pager-list-header-first "}mw-index-pager-list-header">${day}</h4><ul class="mw-contributions-list">\n${revs.map((r) => contribLine(ctx, r)).join("\n")}\n</ul>`);
   const body = page.length ? `${nav}<section class='mw-pager-body'>\n${days.join("")}</section>\n${nav}` : `<p>No changes were found matching these criteria.\n</p>`;
   return specialProps(`Contributions of ${name}`, top + body, {

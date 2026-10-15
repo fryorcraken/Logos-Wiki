@@ -29,16 +29,16 @@ function rejection(wiki: Wiki, event: Verified) {
 }
 
 export async function POST(request: Request) {
-  if (limited(`ip:${await clientIp()}`, 120)) return fail("Too many requests. Please wait a minute.", 429);
   const body = await readJson(request, MAX_BODY);
   const event = verify(body);
   if (!body || !event) return fail("The change could not be verified.");
   const gw = await gateway();
   const { wiki } = gw;
   if (wiki.has(event.id)) return json({ id: event.id });
-  const admin = event.by === wiki.admin;
-  if (!admin && Math.abs(Date.now() - event.ts) > CLOCK_SKEW) return fail("Your clock is out of sync. Please check your system time.");
-  if (!admin && limited(`key:${event.by}`, 30)) return fail("You are making changes too quickly. Please wait a minute.", 429);
+  if (event.by !== wiki.admin) {
+    if (Math.abs(Date.now() - event.ts) > CLOCK_SKEW) return fail("Your clock is out of sync. Please check your system time.");
+    if (limited(`ip:${await clientIp()}`, 60) || limited(`key:${event.by}`, 30)) return fail("You are making changes too quickly. Please wait a minute.", 429);
+  }
   if (event.t === "edit" && typeof body.base === "number" && (wiki.latest(event.title)?.id ?? 0) !== body.base) {
     return fail("Edit conflict: someone else has changed this page since you started editing it. Copy your text, reload the page and apply your changes again.", 409);
   }

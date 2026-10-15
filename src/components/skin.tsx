@@ -26,6 +26,8 @@ export type SkinProps = {
   lastmod?: number;
   catlinks?: string;
   printUrl: string;
+  wide?: boolean;
+  restricted?: boolean;
   children?: ReactNode;
 };
 
@@ -301,11 +303,15 @@ export function Skin(props: SkinProps) {
   return (
     <>
       <title>{props.docTitle}</title>
+      <link rel="stylesheet" href="/skin/vector.css" precedence="skin" />
+      <link rel="stylesheet" href="/skin/interface.css" precedence="skin" />
+      <link rel="stylesheet" href="/skin/wiki.css" precedence="skin" />
+      {!props.restricted && <link rel="stylesheet" href="/site.css" precedence="site" />}
       <a className="mw-jump-link" href="#bodyContent">
         Jump to content
       </a>
       <Header viewer={viewer} returnto={returnto} />
-      <div className={`mw-page-container ${hasToc ? "vector-toc-available" : "vector-toc-not-available"}`}>
+      <div className={`mw-page-container ${hasToc ? "vector-toc-available" : "vector-toc-not-available"}${props.wide ? " vector-feature-limited-width-content-disabled" : ""}`}>
         <div className="mw-page-container-inner">
           <div className="vector-sitenotice-container">
             <div id="siteNotice" />

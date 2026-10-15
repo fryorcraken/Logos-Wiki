@@ -7,7 +7,7 @@ import { Skin } from "@/components/skin.tsx";
 import { MAIN_PAGE, SITENAME } from "@/lib/config.ts";
 import { encodeTitle, parseTitle, type Title } from "@/lib/title.ts";
 import { context, type Context } from "@/server/context.ts";
-import { esc, link, userLink } from "@/server/html.ts";
+import { esc, helpIndicator, link, userLink } from "@/server/html.ts";
 import { renderRevision } from "@/server/site.ts";
 import { canonicalSpecial, SPECIAL_TITLES } from "@/server/special-names.ts";
 import { diffView, editView, historyView, infoView } from "./actions.ts";
@@ -20,6 +20,14 @@ type Outcome = ViewProps & { children?: ReactNode };
 type SpecialView = (ctx: Context, sub: string, query: Query) => Outcome | { redirect: string };
 
 const RECENT_DAYS = 30 * 86_400_000;
+const HELP: Record<string, string> = {
+  Categories: "Categories",
+  Contributions: "User_contributions",
+  RecentChanges: "Recent_changes",
+  Search: "Searching",
+  SpecialPages: "Special_pages",
+  WhatLinksHere: "What_links_here",
+};
 
 function interfaceText(ctx: Context, name: string) {
   const rev = ctx.wiki.latest(`MediaWiki:${name}`);
@@ -29,14 +37,14 @@ function interfaceText(ctx: Context, name: string) {
 function login(ctx: Context, _sub: string, query: Query): Outcome {
   const returnto = query.returnto ?? "";
   if (ctx.viewer) return specialProps("Log in", `<p>You are already logged in as ${userLink(ctx.wiki, ctx.viewer.name)}.</p>`);
-  return { ...specialProps("Log in", ""), children: <LoginForm prompt={interfaceText(ctx, "Loginprompt")} sitename={SITENAME} returnto={returnto} /> };
+  return { ...specialProps("Log in", "", { restricted: true }), children: <LoginForm prompt={interfaceText(ctx, "Loginprompt")} sitename={SITENAME} returnto={returnto} /> };
 }
 
 function createAccount(ctx: Context, _sub: string, query: Query): Outcome {
   const since = Date.now() - RECENT_DAYS;
   const recent = new Set(ctx.wiki.revisions.filter((r) => r.ts > since).map((r) => r.user)).size;
   const { edits, articles } = ctx.wiki.stats();
-  return { ...specialProps("Create account", ""), children: <CreateAccountForm sitename={SITENAME} returnto={query.returnto ?? ""} stats={{ edits, articles, recent }} /> };
+  return { ...specialProps("Create account", "", { restricted: true }), children: <CreateAccountForm sitename={SITENAME} returnto={query.returnto ?? ""} stats={{ edits, articles, recent }} /> };
 }
 
 function logout(_ctx: Context, _sub: string, query: Query): Outcome {
@@ -95,7 +103,8 @@ function special(ctx: Context, title: Title, query: Query) {
   }
   const sub = rest.join("/");
   if (canonical !== name) return { redirect: `/wiki/Special:${canonical}${sub ? `/${encodeTitle(sub)}` : ""}` };
-  return SPECIALS[canonical](ctx, sub, query);
+  const outcome = SPECIALS[canonical](ctx, sub, query);
+  return HELP[canonical] && !("redirect" in outcome) ? { ...outcome, indicators: helpIndicator(HELP[canonical]) } : outcome;
 }
 
 function view(ctx: Context, title: Title, query: Query): Outcome | { redirect: string } {
@@ -109,7 +118,7 @@ function view(ctx: Context, title: Title, query: Query): Outcome | { redirect: s
       return editor ? { ...props, children: <Editor state={editor} /> } : props;
     }
     case "history":
-      return historyView(ctx, title);
+      return historyView(ctx, title, query);
     case "info":
       return infoView(ctx, title);
     default:

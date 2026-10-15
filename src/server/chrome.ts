@@ -59,13 +59,12 @@ export function viewTabs(wiki: Wiki, title: Title, action: Action, canEdit: bool
   return tabs;
 }
 
-const SPECIAL_TOOLS: Item[] = [
+export const SPECIAL_TOOLS: Item[] = [
   { id: "t-specialpages", text: "Special pages", href: "/wiki/Special:SpecialPages", title: "A list of all special pages [q]", accessKey: "q" },
-  { id: "t-print", text: "Printable version", href: "javascript:print();", rel: "alternate", title: "Printable version of this page [p]", accessKey: "p" },
+  { id: "t-print", text: "Printable version", href: "#print", rel: "alternate", title: "Printable version of this page [p]", accessKey: "p" },
 ];
 
-export function pageTools(wiki: Wiki, title: Title | null, revid?: number): Item[] {
-  if (!title) return SPECIAL_TOOLS;
+export function pageTools(wiki: Wiki, title: Title, revid?: number): Item[] {
   const key = encodeTitle(title.full);
   const tools: Item[] = [
     { id: "t-whatlinkshere", text: "What links here", href: `/wiki/Special:WhatLinksHere/${key}`, title: "A list of all wiki pages that link here [j]", accessKey: "j" },

@@ -5,7 +5,8 @@ import type { Revision } from "@/lib/state.ts";
 import { actionUrl, pageUrl, parseTitle, type Title } from "@/lib/title.ts";
 import { sectionText } from "@/lib/sections.ts";
 import type { Context } from "@/server/context.ts";
-import { comment, esc, link, specialLink, titleHeading, userLink, userToolLinks, userWithTools } from "@/server/html.ts";
+import { comment, esc, helpIndicator, link, specialLink, titleHeading, userLink, userToolLinks, userWithTools } from "@/server/html.ts";
+import { form, submitButton, textField } from "@/server/ooui.ts";
 import { renderRevision } from "@/server/site.ts";
 import { canEdit, docTitle, pageProps, type Query, type ViewProps } from "./common.ts";
 
@@ -96,15 +97,17 @@ export function plusMinus(delta: number, size: number) {
   return `<${tag} dir="ltr" class="${cls} mw-diff-bytes" title="${formatNumber(size)} byte${size === 1 ? "" : "s"} after change">${text}</${tag}>`;
 }
 
-export function historyView(ctx: Context, title: Title): ViewProps {
+export function historyView(ctx: Context, title: Title, query: Query): ViewProps {
   const page = ctx.wiki.pages.get(title.full);
   if (!page) {
     const content = `<p>There is no revision history for this page.\n</p>`;
     return pageProps(ctx, title, "history", { heading: `${esc(title.full)}: Revision history`, docTitle: docTitle(`${title.full}: Revision history`), content });
   }
+  const until = Date.parse(`${query.date ?? ""}T23:59:59Z`) || Infinity;
   const revs = page.revs;
   const days = new Map<string, string[]>();
   for (let k = revs.length - 1; k >= 0; k--) {
+    if (revs[k].ts > until) continue;
     const day = formatDate(revs[k].ts);
     if (!days.has(day)) days.set(day, []);
     days.get(day)!.push(historyLine(ctx, title, revs, k));
@@ -113,7 +116,9 @@ export function historyView(ctx: Context, title: Title): ViewProps {
     .map(([day, lines], i) => `<h4 class="${i === 0 ? "mw-index-pager-list-header-first " : ""}mw-index-pager-list-header">${day}</h4><ul class="mw-contributions-list">\n${lines.join("\n")}\n</ul>`)
     .join("");
   const button = `<div class="mw-history-compareselectedversions"><input class="historysubmit mw-history-compareselectedversions-button cdx-button" title="See the differences between the two selected revisions of this page [v]" accesskey="v" type="submit" value="Compare selected revisions">\n</div>`;
+  const filter = form("/index.php", "Filter revisions", [textField("To date (YYYY-MM-DD):", "date", query.date ?? "", "mw-date-picker"), submitButton("Show revisions")], { title: title.full, action: "history" }, true);
   const content = [
+    filter,
     `<div class="mw-history-legend">\n<p>Diff selection: Mark the radio buttons of the revisions to compare and hit enter or the button at the bottom.<br />\nLegend: <strong>(cur)</strong> = difference with latest revision, <strong>(prev)</strong> = difference with preceding revision, <strong>m</strong> = minor edit.\n</p>\n</div>`,
     `<form action="/index.php" id="mw-history-compare">\n<input type="hidden" value="${esc(title.full.replace(/ /g, "_"))}" name="title">\n${button}<section id="pagehistory" class="mw-pager-body">${list}</section>${button}</form>`,
   ].join("");
@@ -121,6 +126,7 @@ export function historyView(ctx: Context, title: Title): ViewProps {
     heading: `${esc(title.full)}: Revision history`,
     docTitle: docTitle(`${title.full}: Revision history`),
     content,
+    indicators: helpIndicator("Page_history"),
     subtitle: `<div class="mw-history-subtitle"><a href="${esc(actionUrl("Special:Log", { page: title.full }))}" title="Special:Log">View logs for this page</a></div>`,
   });
 }
@@ -178,6 +184,7 @@ export function diffView(ctx: Context, title: Title, query: Query): ViewProps {
     heading: `${esc(title.full)}: Difference between revisions`,
     docTitle: docTitle(`${title.full}: Difference between revisions`),
     content: header + table + preview,
+    indicators: helpIndicator("Diff"),
     siteSub: true,
     lastmod: latest.ts,
     catlinks: "",

@@ -3,11 +3,9 @@ import { formatBytes, formatDateTime, formatNumber } from "@/lib/format.ts";
 import type { Revision } from "@/lib/state.ts";
 import { actionUrl, encodeTitle, makeTitle, pageUrl, parseTitle, type Title } from "@/lib/title.ts";
 import type { Context } from "@/server/context.ts";
-import { catlinks, comment, esc, link, subpages, titleHeading, userWithTools } from "@/server/html.ts";
+import { catlinks, comment, esc, helpIndicator, link, subpages, titleHeading, userWithTools } from "@/server/html.ts";
 import { renderRevision, siteIndex, type Member } from "@/server/site.ts";
 import { canEdit, pageProps, type Query, type ViewProps } from "./common.ts";
-
-const HELP = "https://www.mediawiki.org/wiki/Special:MyLanguage/Help:Categories";
 
 function noArticle(ctx: Context, title: Title) {
   const key = encodeTitle(title.full);
@@ -130,7 +128,7 @@ export function articleView(ctx: Context, requested: Title, query: Query): ViewP
     subtitle,
     siteSub: true,
     mainPage: title.full === MAIN_PAGE,
-    indicators: isCategory ? `<div id="mw-indicator-mw-helplink" class="mw-indicator"><a href="${HELP}" target="_blank" class="mw-helplink">Help</a></div>` : "",
+    indicators: isCategory ? helpIndicator("Categories") : "",
     lastmod: rev?.ts,
     toc: out?.toc && out.headings.length >= 4 ? out.headings : [],
     catlinks: out ? catlinks(ctx.wiki, out.categories) : "",

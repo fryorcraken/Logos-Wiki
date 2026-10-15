@@ -1,7 +1,7 @@
 import type { SkinProps } from "@/components/skin.tsx";
 import { MAIN_PAGE, SITENAME } from "@/lib/config.ts";
 import { actionUrl, pageUrl, type Title } from "@/lib/title.ts";
-import { namespaceTabs, pageTools, viewTabs, type Action } from "@/server/chrome.ts";
+import { namespaceTabs, pageTools, SPECIAL_TOOLS, viewTabs, type Action } from "@/server/chrome.ts";
 import type { Context } from "@/server/context.ts";
 
 export type Query = Record<string, string | undefined>;
@@ -21,12 +21,13 @@ export function pageProps(ctx: Context, title: Title, action: Action, props: Par
     viewTabs: viewTabs(ctx.wiki, title, action, canEdit(ctx, title)),
     tools: pageTools(ctx.wiki, title, latest?.id),
     printPath: latest ? actionUrl(title.full, { oldid: latest.id }) : pageUrl(title.full),
+    wide: title.ns === 14,
     ...props,
   };
 }
 
 export function specialProps(heading: string, content: string, props: Partial<ViewProps> = {}): ViewProps {
-  return { docTitle: docTitle(heading), heading, content, tools: pageTools({} as never, null), ...props };
+  return { docTitle: docTitle(heading), heading, content, tools: SPECIAL_TOOLS, wide: true, ...props };
 }
 
 export function finish(ctx: Context, props: ViewProps, returnto: string): SkinProps {

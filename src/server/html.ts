@@ -64,6 +64,9 @@ export function subpages(wiki: Wiki, title: Title) {
   return crumbs.length ? `<div class="subpages">&lt; ${crumbs.join("‎ | ")}</div>` : "";
 }
 
+export const helpIndicator = (page: string) =>
+  `<div id="mw-indicator-mw-helplink" class="mw-indicator"><a href="https://www.mediawiki.org/wiki/Special:MyLanguage/Help:${page}" target="_blank" class="mw-helplink">Help</a></div>`;
+
 export function catlinks(wiki: Wiki, categories: { name: string }[]) {
   const names = [...new Set(categories.map((c) => c.name))];
   if (!names.length) return "";

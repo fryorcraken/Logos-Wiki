@@ -2,9 +2,9 @@
 .vector-pinnable-header-toggle-button{display:none}
 .mw-collapsible-checkbox{position:absolute;opacity:0;z-index:-100}
 .mw-collapsible-checkbox:checked+.mw-htmlform-ooui-wrapper .mw-collapsible-content{display:block}
-.mw-collapsible-toggle-label{cursor:pointer}
-.mw-collapsible-toggle-label:after{content:' [Expand]';font-weight:normal;color:#36c}
-.mw-collapsible-checkbox:checked+.mw-htmlform-ooui-wrapper .mw-collapsible-toggle-label:after{content:' [Collapse]'}
+.mw-collapsible-toggle-label{cursor:pointer;display:block;font-weight:bold}
+.mw-collapsible-toggle-label:before{content:'';display:inline-block;width:12px;height:12px;margin-right:12px;background:url(icons/expand.svg) center/12px no-repeat}
+.mw-collapsible-checkbox:checked+.mw-htmlform-ooui-wrapper .mw-collapsible-toggle-label:before{transform:rotate(180deg)}
 #wpTextbox1{width:100%;box-sizing:border-box;font-family:monospace,monospace;font-size:inherit;line-height:1.5em;padding:.1em .2em}
 .editOptions{background:#eaecf0;border:1px solid #c8ccd1;border-top:0;padding:1em 1em 1.5em;margin-bottom:2em}
 .editOptions .oo-ui-textInputWidget{max-width:none}
@@ -16,3 +16,6 @@
 .cdx-message--error{margin:0 0 1em}
 #mw-upload-form fieldset{margin-bottom:1em}
 .mw-logevent-loglines li{margin-bottom:.2em}
+#pagehistory input[name=diff]{visibility:hidden}
+#pagehistory li:has(input[name=diff]:checked) input[name=diff],#pagehistory li:has(~li input[name=oldid]:checked) input[name=diff]{visibility:visible}
+#pagehistory li:has(input[name=diff]:checked) input[name=oldid],#pagehistory li:has(~li input[name=diff]:checked) input[name=oldid]{visibility:hidden}

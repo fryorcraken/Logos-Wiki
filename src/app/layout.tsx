@@ -30,12 +30,6 @@ export const viewport: Viewport = { width: 1000 };
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" dir="ltr" className={HTML_CLASS} suppressHydrationWarning>
-      <head>
-        <link rel="stylesheet" href="/skin/vector.css" />
-        <link rel="stylesheet" href="/skin/interface.css" />
-        <link rel="stylesheet" href="/skin/wiki.css" />
-        <link rel="stylesheet" href="/site.css" />
-      </head>
       <body className={BODY_CLASS}>{children}</body>
     </html>
   );

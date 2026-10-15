@@ -1,5 +1,5 @@
 import { SITENAME } from "@/lib/config.ts";
-import { byteLength, formatBytes, formatDate, formatDateTime, formatNumber } from "@/lib/format.ts";
+import { byteLength, formatBytes, formatDate, formatDateTime, formatNumber, formatTime } from "@/lib/format.ts";
 import { actionUrl, encodeTitle, NAMESPACES, parseTitle, type Title } from "@/lib/title.ts";
 import type { Heading } from "@/lib/wikitext/blocks.ts";
 import type { Context } from "@/server/context.ts";
@@ -79,7 +79,8 @@ export function users(ctx: Context) {
   const firstEdit = new Map<string, number>();
   for (const rev of wiki.revisions) if (!firstEdit.has(rev.user)) firstEdit.set(rev.user, rev.ts);
   const names = new Set([...wiki.accounts.keys(), ...wiki.reserved]);
-  return [...names].sort().map((name) => ({ name, created: wiki.accounts.get(name)?.ts ?? firstEdit.get(name) ?? 0 }));
+  const created = (name: string) => Math.min(wiki.accounts.get(name)?.ts ?? Infinity, firstEdit.get(name) ?? Infinity);
+  return [...names].sort().map((name) => ({ name, created: Number.isFinite(created(name)) ? created(name) : 0 }));
 }
 
 export function listUsers(ctx: Context, _sub: string, query: Query): ViewProps {
@@ -89,8 +90,7 @@ export function listUsers(ctx: Context, _sub: string, query: Query): ViewProps {
     .filter((u) => u.name >= start)
     .map(({ name, created }) => {
       const groups = [ctx.wiki.isAdmin(name) && groupLink("Administrators", "administrator"), ctx.wiki.trusted.includes(name) && specialLink("TrustedEditors", "trusted editor")].filter(Boolean);
-      const date = new Date(created);
-      const when = created ? ` (Created on ${formatDate(created)} at ${String(date.getUTCHours()).padStart(2, "0")}:${String(date.getUTCMinutes()).padStart(2, "0")})` : "";
+      const when = created ? ` (Created on ${formatDate(created)} at ${formatTime(created)})` : "";
       return `<li>${userWithTools(ctx.wiki, name).replace('class="mw-usertoollinks"', 'class="mw-usertoollinks mw-changeslist-links"')}${groups.length ? `‏‎ (${groups.join(", ")})` : ""}${when}</li>`;
     });
   const fields = [textField("Display users starting at:", "username", start, "mw-input-username"), submitButton("Show")];
