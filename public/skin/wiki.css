@@ -1,0 +1,18 @@
+.mw-contents{display:contents}
+.vector-pinnable-header-toggle-button{display:none}
+.mw-collapsible-checkbox{position:absolute;opacity:0;z-index:-100}
+.mw-collapsible-checkbox:checked+.mw-htmlform-ooui-wrapper .mw-collapsible-content{display:block}
+.mw-collapsible-toggle-label{cursor:pointer}
+.mw-collapsible-toggle-label:after{content:' [Expand]';font-weight:normal;color:#36c}
+.mw-collapsible-checkbox:checked+.mw-htmlform-ooui-wrapper .mw-collapsible-toggle-label:after{content:' [Collapse]'}
+#wpTextbox1{width:100%;box-sizing:border-box;font-family:monospace,monospace;font-size:inherit;line-height:1.5em;padding:.1em .2em}
+.editOptions{background:#eaecf0;border:1px solid #c8ccd1;border-top:0;padding:1em 1em 1.5em;margin-bottom:2em}
+.editOptions .oo-ui-textInputWidget{max-width:none}
+.editOptions .mw-summary{width:100%;box-sizing:border-box}
+.editCheckboxes{margin:.75em 0}
+.editButtons>span{margin-right:.5em}
+.cancelLink,.editHelp{margin-left:.5em}
+#wikiPreview,#wikiDiff{margin-bottom:1.5em}
+.cdx-message--error{margin:0 0 1em}
+#mw-upload-form fieldset{margin-bottom:1em}
+.mw-logevent-loglines li{margin-bottom:.2em}
