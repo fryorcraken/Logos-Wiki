@@ -1,6 +1,6 @@
 import { scrypt } from "@noble/hashes/scrypt.js";
 import { utf8ToBytes } from "@noble/hashes/utils.js";
-import { ADMIN_KEY, MAX_TEXT, MAIN_PAGE, PRESET, SITENAME, SNAPSHOT_CID, TOPIC } from "./config.ts";
+import { ADMIN_KEY, DISPLAY_ARTICLES, MAX_TEXT, MAIN_PAGE, PRESET, SITENAME, SNAPSHOT_CID, TOPIC } from "./config.ts";
 import { canonicalTitle, validUsername, Wiki, type Page } from "../../src/lib/state.ts";
 import { publicKey, sign, verify, type Body, type Envelope } from "../../src/lib/events.ts";
 import { parseTitle, type Title } from "../../src/lib/title.ts";
@@ -99,6 +99,10 @@ export function richText(html: string) {
   return qmlHtml(html);
 }
 
+function displayStats(wiki: Wiki) {
+  return { ...wiki.stats(), articles: DISPLAY_ARTICLES };
+}
+
 export function renderPage(wiki: Wiki, rawTitle: string, editable = false) {
   const title = parseTitle(rawTitle);
   if (!title) return { html: "<p>Invalid title.</p>", title: rawTitle, missing: true, categories: [], headings: [] };
@@ -114,7 +118,7 @@ export function renderPage(wiki: Wiki, rawTitle: string, editable = false) {
       const file = wiki.files.get(name);
       return file ? { width: file.width, height: file.height } : null;
     },
-    stats: wiki.stats(),
+    stats: displayStats(wiki),
     editable,
   });
   return { ...rendered, html: richText(rendered.html), title: title.full, missing: false, parsed: title, source: text };
@@ -312,7 +316,7 @@ export function enginePreview(rawTitle: string, text: string) {
       exists: (full) => session.pages.has(full),
       template: (full) => latestText(session, full),
       file: () => null,
-      stats: session.stats(),
+      stats: displayStats(session),
     }).html,
   );
 }

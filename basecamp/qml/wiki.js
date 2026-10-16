@@ -3341,6 +3341,7 @@ var WikiBag = function (list) {
   // basecamp/js/config.ts
   var SITENAME = "Local Area Network";
   var MAIN_PAGE = "Main Page";
+  var DISPLAY_ARTICLES = 76;
   var ADMIN_KEY = "ee7a5fc7ab70a820df10a4d3ba12f2e3f830c3f486b0d645eded9e8ff729ce08";
   var TOPIC = "/logos-wiki/1/lan/json";
   var PRESET = "logos.dev";
@@ -4666,6 +4667,9 @@ ${body.trim()}`;
     });
     return qmlHtml(html);
   }
+  function displayStats(wiki) {
+    return __spreadProps(__spreadValues({}, wiki.stats()), { articles: DISPLAY_ARTICLES });
+  }
   function renderPage(wiki, rawTitle, editable = false) {
     const title = parseTitle(rawTitle);
     if (!title) return { html: "<p>Invalid title.</p>", title: rawTitle, missing: true, categories: [], headings: [] };
@@ -4681,7 +4685,7 @@ ${body.trim()}`;
         const file = wiki.files.get(name);
         return file ? { width: file.width, height: file.height } : null;
       },
-      stats: wiki.stats(),
+      stats: displayStats(wiki),
       editable
     });
     return __spreadProps(__spreadValues({}, rendered), { html: richText(rendered.html), title: title.full, missing: false, parsed: title, source: text });
@@ -4839,7 +4843,7 @@ ${body.trim()}`;
         exists: (full) => session.pages.has(full),
         template: (full) => latestText(session, full),
         file: () => null,
-        stats: session.stats()
+        stats: displayStats(session)
       }).html
     );
   }

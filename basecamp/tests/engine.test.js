@@ -79,6 +79,9 @@ test("bundled snapshot loads the imported Main Page", () => {
   assert.match(page.html, /<table[^>]*border="1"/);
   assert.doesNotMatch(page.html, /Every page carries a status/);
   assert.doesNotMatch(page.html, /Page status:/);
+  assert.match(page.html, /76 articles/);
+  assert.match(page.html, /56 Circles in 20 countries/);
+  assert.doesNotMatch(page.html, /121 articles/);
   assert.equal(page.toc, false);
   assert.equal(typeof wiki.stats().pages, "number");
   assert.ok(wiki.stats().pages > 100);
