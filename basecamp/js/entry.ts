@@ -103,11 +103,86 @@ function displayStats(wiki: Wiki) {
   return { ...wiki.stats(), articles: DISPLAY_ARTICLES };
 }
 
+function categoryMembers(wiki: Wiki, catText: string) {
+  const out: { page: string; sortKey: string }[] = [];
+  wiki.pages.forEach((page, full) => {
+    const text = latestText(wiki, full);
+    if (!text) return;
+    const re = /\[\[Category:([^\]|#]+)(?:\|([^\]]*))?\]\]/gi;
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(text))) {
+      const parsed = parseTitle("Category:" + match[1].replace(/_/g, " ").trim());
+      if (!parsed || parsed.text !== catText) continue;
+      const key = (match[2] || "").trim() || page.title.text;
+      out.push({ page: full, sortKey: key });
+    }
+  });
+  out.sort((a, b) => {
+    const ak = a.sortKey.toLowerCase();
+    const bk = b.sortKey.toLowerCase();
+    if (ak < bk) return -1;
+    if (ak > bk) return 1;
+    return a.page < b.page ? -1 : a.page > b.page ? 1 : 0;
+  });
+  return out;
+}
+
+function categoryGroups(members: { page: string; sortKey: string }[], label: (page: string) => string) {
+  const by: { [letter: string]: string[] } = {};
+  for (let i = 0; i < members.length; i++) {
+    const member = members[i];
+    const letter = (member.sortKey.charAt(0) || " ").toUpperCase();
+    if (!by[letter]) by[letter] = [];
+    by[letter].push(`<p><a href="/wiki/${member.page.replace(/ /g, "_")}">${label(member.page)}</a></p>`);
+  }
+  const letters = Object.keys(by).sort();
+  let html = "";
+  for (let i = 0; i < letters.length; i++) {
+    html += `<h3><span class="mw-headline" id="${letters[i]}">${letters[i]}</span></h3>${by[letters[i]].join("")}`;
+  }
+  return html;
+}
+
+function categoryListing(wiki: Wiki, catText: string) {
+  const members = categoryMembers(wiki, catText);
+  const subcats = members.filter((m) => m.page.indexOf("Category:") === 0);
+  const pages = members.filter((m) => m.page.indexOf("Category:") !== 0);
+  if (!members.length) return `<p><i>This category currently contains no pages or media.</i></p>`;
+  let html = "";
+  if (subcats.length) {
+    const intro =
+      subcats.length === 1
+        ? "This category has only the following subcategory."
+        : `This category has the following ${formatNumber(subcats.length)} subcategories, out of ${formatNumber(subcats.length)} total.`;
+    html += `<h2><span class="mw-headline" id="Subcategories">Subcategories</span></h2><p>${intro}</p>${categoryGroups(subcats, (page) => page.slice(9))}`;
+  }
+  if (pages.length) {
+    const intro =
+      pages.length === 1
+        ? "This category contains only the following page."
+        : `The following ${formatNumber(pages.length)} pages are in this category, out of ${formatNumber(pages.length)} total.`;
+    html += `<h2><span class="mw-headline" id="Pages_in_category">Pages in category "${catText}"</span></h2><p>${intro}</p>${categoryGroups(pages, (page) => page)}`;
+  }
+  return html;
+}
+
 export function renderPage(wiki: Wiki, rawTitle: string, editable = false) {
   const title = parseTitle(rawTitle);
   if (!title) return { html: "<p>Invalid title.</p>", title: rawTitle, missing: true, categories: [], headings: [] };
   const text = latestText(wiki, title.full);
   if (text === null) {
+    if (title.ns === 14) {
+      const listing = categoryListing(wiki, title.text);
+      return {
+        html: richText(listing),
+        title: title.full,
+        missing: false,
+        categories: [],
+        headings: [],
+        parsed: title,
+        source: "",
+      };
+    }
     return { html: "<p>There is currently no text in this page.</p>", title: title.full, missing: true, categories: [], headings: [], parsed: title };
   }
   const rendered = render(text, {
@@ -121,7 +196,8 @@ export function renderPage(wiki: Wiki, rawTitle: string, editable = false) {
     stats: displayStats(wiki),
     editable,
   });
-  return { ...rendered, html: richText(rendered.html), title: title.full, missing: false, parsed: title, source: text };
+  const html = title.ns === 14 ? rendered.html + categoryListing(wiki, title.text) : rendered.html;
+  return { ...rendered, html: richText(html), title: title.full, missing: false, parsed: title, source: text };
 }
 
 export function pageTitles(wiki: Wiki) {

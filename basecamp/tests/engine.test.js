@@ -107,6 +107,26 @@ test("bundled snapshot loads the imported Main Page", () => {
   assert.ok(polisParts.some((p) => p.anchor === "Sources"));
   const circleParts = W.splitArticleHtml(circle.html);
   assert.ok(circleParts.some((p) => p.anchor === "Winnable_issues_completed"));
+
+  const circles = W.renderPage(wiki, "Circles");
+  assert.equal(circles.missing, false);
+  assert.match(circles.html, /wiki:\/\/Circles/);
+  assert.match(circles.html, /Accra/);
+  assert.match(circles.html, /Aba/);
+
+  const cat = W.renderPage(wiki, "Category:Circles");
+  assert.equal(cat.missing, false);
+  assert.match(cat.html, /Pages in category/);
+  assert.match(cat.html, /56 pages/);
+  assert.match(cat.html, /Circles\/Aba/);
+  assert.match(cat.html, /Circles\/Accra/);
+  assert.match(cat.html, /wiki:\/\/Circles/);
+  const catParts = W.splitArticleHtml(cat.html);
+  assert.ok(catParts.some((p) => p.anchor === "C" && /Circles\/Aba/.test(p.html)));
+
+  const lan = W.renderPage(wiki, "Category:LAN");
+  assert.match(lan.html, /Subcategories/);
+  assert.match(lan.html, /Circles/);
 });
 
 test("parseWikiHref keeps edit, section, and redlink", () => {
