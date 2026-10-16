@@ -26,13 +26,16 @@ Item {
     property int pageCount: 0
     readonly property bool hasLogos: typeof logos !== "undefined" && logos && logos.callModuleAsync
     readonly property string shippedAdmin: "ee7a5fc7ab70a820df10a4d3ba12f2e3f830c3f486b0d645eded9e8ff729ce08"
-    readonly property color ink: "#202122"
-    readonly property color muted: "#54595d"
-    readonly property color link: "#3366cc"
-    readonly property color line: "#a2a9b1"
-    readonly property color paper: "#ffffff"
-    readonly property color wash: "#f8f9fa"
-    readonly property color header: "#eaecf0"
+    readonly property color ink: dark ? "#eaecf0" : "#202122"
+    readonly property color muted: dark ? "#a2a9b1" : "#54595d"
+    readonly property color link: dark ? "#88a3e8" : "#3366cc"
+    readonly property color line: dark ? "#54595d" : "#a2a9b1"
+    readonly property color paper: dark ? "#101418" : "#ffffff"
+    readonly property color wash: dark ? "#202122" : "#f8f9fa"
+    readonly property color header: dark ? "#27292d" : "#eaecf0"
+    readonly property bool noticeOk: !busyText.length && /logged in|account has been created|logged out/i.test(notice)
+    readonly property color noticeFill: busyText.length ? (dark ? "#27292d" : "#eaecf0") : (noticeOk ? (dark ? "#274a32" : "#cef2e0") : (dark ? "#3b3420" : "#fef6e7"))
+    readonly property string linkHex: dark ? "#88a3e8" : "#3366cc"
     property var tocItems: []
     property var articleSections: []
     property string pendingAnchor: ""
@@ -42,6 +45,8 @@ Item {
     property string pendingName: ""
     property string pendingPassword: ""
     property bool pendingRemember: false
+    property bool dark: false
+    property string authError: ""
     readonly property bool showToc: mode === "article" && tocItems && tocItems.length >= 4
     readonly property bool isAdmin: userKey !== "" && adminKey !== "" && userKey.toLowerCase() === adminKey.toLowerCase()
     readonly property string headingText: {
@@ -221,7 +226,7 @@ Item {
         var parts = []
         for (var i = 0; i < cats.length; i++) {
             var name = cats[i].name || cats[i]
-            parts.push('<a href="wiki://' + encodeURIComponent("Category:" + name) + '">' + name + "</a>")
+            parts.push('<a href="wiki://' + encodeURIComponent("Category:" + name) + '"><font color="' + root.linkHex + '">' + name + "</font></a>")
         }
         return "<p>Categories: " + parts.join(" · ") + "</p>"
     }
@@ -422,15 +427,16 @@ Item {
         })
     }
 
-    function sendEnvelope(envelope, okText) {
+    function sendEnvelope(envelope, okText, quiet) {
         var payload = JSON.stringify(envelope)
         rememberEnvelope(envelope)
         renderCurrent()
         if (!hasLogos) {
-            notice = (okText || "Saved locally") + " (Delivery is offline)"
+            if (!quiet) notice = (okText || "Saved locally") + " (Delivery is offline)"
             return
         }
         callMod("delivery_module", "send", [Wiki.TOPIC, payload], function (result) {
+            if (quiet && isOk(result)) return
             notice = isOk(result) ? (okText || "Published") : (result.error || "send failed")
         })
     }
@@ -443,24 +449,29 @@ Item {
         else kvSet("session", "")
         if (created) userName = userName || name
         else if (userName !== name) {
-            notice = "Incorrect username or password entered. Please try again."
+            authError = "Incorrect username or password entered. Please try again."
             userName = ""
             userKey = ""
             seedHex = ""
-            return
+            return false
         }
-        notice = created ? "Account created" : ("Signed in as " + userName)
+        authError = ""
+        notice = created
+            ? ("Welcome, " + userName + "! Your account has been created.")
+            : ("You are now logged in as " + userName + ".")
         if (/^Special:(UserLogin|CreateAccount|UserLogout)$/i.test(currentTitle)) currentTitle = Wiki.MAIN_PAGE
         mode = "article"
         renderCurrent()
+        return true
     }
 
     function login(name, password, remember) {
+        authError = ""
         pendingAuth = "login"
         pendingName = Wiki.normalizeUsername(name)
         pendingPassword = password
         pendingRemember = remember
-        busyText = "Please wait…"
+        busyText = "Logging in… this can take about a minute."
         authTimer.restart()
     }
 
@@ -468,18 +479,19 @@ Item {
         var normalized = Wiki.normalizeUsername(name)
         var valid = Wiki.validUsername(normalized)
         if (!valid) {
-            notice = "The username is invalid."
+            authError = "The username is invalid."
             return
         }
         if (!password || password.length < 10) {
-            notice = "Passwords must be at least 10 characters."
+            authError = "Passwords must be at least 10 characters."
             return
         }
+        authError = ""
         pendingAuth = "create"
         pendingName = valid
         pendingPassword = password
         pendingRemember = !!remember
-        busyText = "Please wait…"
+        busyText = "Creating your account… this can take about a minute."
         authTimer.restart()
     }
 
@@ -488,19 +500,29 @@ Item {
             var auth = Wiki.engineAuth(pendingName, pendingPassword)
             if (pendingAuth === "create") {
                 if (Wiki.engineAccountTaken(auth.key, pendingName)) {
-                    notice = "Username entered already in use. Please choose a different name."
+                    authError = "Username entered already in use. Please choose a different name."
                     busyText = ""
+                    pendingAuth = ""
+                    pendingPassword = ""
                     return
                 }
-                sendEnvelope(Wiki.publishBody(auth.seedHex, { t: "account", name: pendingName }), "Account created")
+                sendEnvelope(Wiki.publishBody(auth.seedHex, { t: "account", name: pendingName }), "Account created", true)
                 applySession(auth.seedHex, auth.key, pendingName, pendingRemember, true)
             } else applySession(auth.seedHex, auth.key, pendingName, pendingRemember, false)
         } catch (err) {
-            notice = String(err)
+            if (pendingAuth) authError = String(err)
+            else notice = String(err)
         }
         busyText = ""
         pendingAuth = ""
         pendingPassword = ""
+    }
+
+    function setDark(on) {
+        dark = !!on
+        kvSet("dark", dark ? "1" : "")
+        Wiki.engineSetTheme(dark)
+        renderCurrent()
     }
 
     function logout() {
@@ -579,6 +601,8 @@ Item {
     }
 
     function boot() {
+        dark = kvGet("dark", "") === "1"
+        Wiki.engineSetTheme(dark)
         adminKey = (kvGet("adminKey", "") || Wiki.ADMIN_KEY || shippedAdmin).toLowerCase()
         snapshotCid = kvGet("snapshotCid", "") || Wiki.SNAPSHOT_CID || ""
         try { envelopes = JSON.parse(kvGet("envelopes", "[]")) } catch (e) { envelopes = [] }
@@ -620,7 +644,7 @@ Item {
 
     Timer {
         id: authTimer
-        interval: 40
+        interval: 100
         repeat: false
         onTriggered: root.finishAuth()
     }
@@ -724,6 +748,7 @@ Item {
                     }
                 }
                 WikiButton {
+                    dark: root.dark
                     text: "Search"
                     onClicked: if (searchField.text) root.openTitle(searchField.text)
                 }
@@ -732,16 +757,20 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: notice.length || busyText.length ? 28 : 0
-            color: "#fef6e7"
+            Layout.preferredHeight: (notice.length || busyText.length) ? Math.max(32, noticeLabel.implicitHeight + 16) : 0
+            color: root.noticeFill
             visible: height > 0
             Text {
+                id: noticeLabel
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.leftMargin: 16
+                anchors.rightMargin: 16
+                wrapMode: Text.Wrap
                 text: root.busyText || root.notice
                 color: root.ink
-                font.pixelSize: 12
+                font.pixelSize: 13
             }
         }
 
@@ -994,12 +1023,21 @@ Item {
             Item { height: 12 }
             WikiButton {
                 width: drawer.width - 32
+                dark: root.dark
                 primary: !root.userName
                 text: root.userName ? root.userName : "Log in"
                 onClicked: {
                     root.menuOpen = false
                     root.mode = root.userName ? "account" : "login"
                 }
+            }
+            Item { height: 8 }
+            Text { text: "Appearance"; color: root.muted; font.pixelSize: 11 }
+            WikiButton {
+                width: drawer.width - 32
+                dark: root.dark
+                text: root.dark ? "Day" : "Night"
+                onClicked: root.setDark(!root.dark)
             }
             Item { height: 12 }
             Text { text: root.pageCount + " pages"; color: root.muted; font.pixelSize: 11 }
@@ -1058,6 +1096,7 @@ Item {
                     WikiButton {
                         visible: root.userKey && Wiki.engineCanEdit(root.userKey, root.currentTitle)
                         primary: true
+                        dark: root.dark
                         text: "Create this page"
                         onClicked: root.beginEdit("")
                     }
@@ -1110,6 +1149,7 @@ Item {
             source: root.editSource()
             summarySeed: root.editSummarySeed()
             creating: !!(root.article && root.article.missing)
+            dark: root.dark
             sectionNew: root.editSection === "new"
             previewFn: function (text) {
                 return Wiki.enginePreview(root.currentTitle, text)
@@ -1132,11 +1172,17 @@ Item {
         id: authPage
         AuthPage {
             creating: root.mode === "create"
-            busy: root.busyText === "Please wait…"
+            busy: root.pendingAuth === "login" || root.pendingAuth === "create"
+            waitText: root.busyText
+            error: root.authError
+            dark: root.dark
             sitename: Wiki.SITENAME
             onLoginRequested: function (name, password, remember) { root.login(name, password, remember) }
             onCreateRequested: function (name, password, remember) { root.createAccount(name, password, remember) }
-            onSwitchMode: root.mode = root.mode === "create" ? "login" : "create"
+            onSwitchMode: {
+                root.authError = ""
+                root.mode = root.mode === "create" ? "login" : "create"
+            }
             onOpenUrl: function (url) { root.openLink(url) }
         }
     }
@@ -1161,6 +1207,7 @@ Item {
                 }
                 WikiButton {
                     visible: root.userName !== ""
+                    dark: root.dark
                     text: "Log out"
                     onClicked: root.logout()
                 }
@@ -1175,6 +1222,7 @@ Item {
             adminKey: root.adminKey
             snapshotCid: root.snapshotCid
             isAdmin: root.isAdmin
+            dark: root.dark
             onOpenTitle: function (name) { root.openTitle(name) }
             onSaveSettings: function (nextAdmin, nextSnapshot) { root.saveSettings(nextAdmin, nextSnapshot) }
             onSaveTrusted: function (editors) { root.publishTrust(editors) }

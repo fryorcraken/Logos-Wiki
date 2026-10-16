@@ -135,6 +135,45 @@ test("richText keeps index.php edit query and colors red links", () => {
   assert.match(html, /#ba0000/);
 });
 
+test("Vector night remaps box, table, infobox, and link colors", () => {
+  try {
+    W.engineSetTheme(true)
+    const heading = W.richText('<h2><span class="mw-headline" id="Head">Head</span></h2><p>Lead</p>');
+    assert.match(heading, /color="#eaecf0"/);
+    assert.match(heading, /<hr/);
+    const table = W.richText(
+      '<table class="wikitable" style="width:100%;"><tr><th>#</th><th>Issue</th></tr><tr><td>1</td><td>Housing</td></tr></table>',
+    );
+    assert.match(table, /bordercolor="#54595d"/);
+    assert.match(table, /bgcolor="#202122"/);
+    assert.match(table, /bgcolor="#27292d"/);
+    assert.doesNotMatch(table, /bordercolor="#a2a9b1"/);
+    const link = W.richText('<p><a href="/wiki/Existing">Existing</a></p>');
+    assert.match(link, /#88a3e8/);
+    const red = W.richText('<p><a href="/index.php?title=Missing&amp;action=edit&amp;redlink=1" class="new">Missing</a></p>');
+    assert.match(red, /#fd7865/);
+    const infobox = W.richText(
+      '<div class="lan-infobox" style="border:1px solid #a2a9b1; background-color:#f8f9fa; color:#202122"><div style="font-weight:bold; border-bottom:1px solid #a2a9b1">Name</div><div>Location: Aba</div></div>',
+    );
+    assert.match(infobox, /bgcolor="#202122"/);
+    assert.doesNotMatch(infobox, /bgcolor="#f8f9fa"/);
+    const featured = W.richText(
+      '<div style="border:1px solid #a2a9b1; background:#ffffff"><div style="background-color:#cef2e0">Featured page</div><p>Hello</p></div>',
+    );
+    assert.match(featured, /#274a32/);
+    assert.match(W.engineDiff("a", "b"), /#fd7865|#80d4a0|#54595d/);
+    W.engineSetTheme(false)
+    const light = W.richText(
+      '<table class="wikitable"><tr><th>H</th></tr><tr><td>1</td></tr></table>',
+    );
+    assert.match(light, /bordercolor="#a2a9b1"/);
+    assert.match(light, /bgcolor="#f8f9fa"/);
+    assert.match(light, /bgcolor="#eaecf0"/);
+  } finally {
+    W.engineSetTheme(false);
+  }
+});
+
 test("article headings get Vector underlines and wikitables keep Vector chrome", () => {
   const heading = W.richText('<h2><span class="mw-headline" id="The_basics">The basics</span></h2><p>Lead</p>');
   assert.match(heading, /The basics/);

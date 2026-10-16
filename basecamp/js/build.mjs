@@ -62,6 +62,7 @@ await esbuild.build({
       "engineDiff",
       "engineIsAdmin",
       "engineAuth",
+      "engineSetTheme",
       "normalizeUsername",
       "latestText",
       "richText",

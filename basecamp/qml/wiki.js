@@ -2533,6 +2533,7 @@ var WikiBag = function (list) {
     engineRecent: () => engineRecent,
     engineRenderPage: () => engineRenderPage,
     engineRevisions: () => engineRevisions,
+    engineSetTheme: () => engineSetTheme,
     engineStats: () => engineStats,
     engineTitles: () => engineTitles,
     engineTrusted: () => engineTrusted,
@@ -4493,6 +4494,74 @@ ${body.trim()}`;
     const m = /\bstyle="([^"]*)"/.exec(attrs);
     return m ? parseStyle(m[1]) : {};
   }
+  var LIGHT = {
+    paper: "#ffffff",
+    wash: "#f8f9fa",
+    header: "#eaecf0",
+    line: "#a2a9b1",
+    lineSoft: "#c8ccd1",
+    ink: "#202122",
+    muted: "#54595d",
+    link: "#3366cc",
+    red: "#ba0000",
+    mint: "#cef2e0",
+    cream: "#fef6e7",
+    del: "#8f0000",
+    ins: "#006400"
+  };
+  var DARK = {
+    paper: "#101418",
+    wash: "#202122",
+    header: "#27292d",
+    line: "#54595d",
+    lineSoft: "#72777d",
+    ink: "#eaecf0",
+    muted: "#a2a9b1",
+    link: "#88a3e8",
+    red: "#fd7865",
+    mint: "#274a32",
+    cream: "#3b3420",
+    del: "#fd7865",
+    ins: "#80d4a0"
+  };
+  var FILL = {
+    "#ffffff": "paper",
+    "#fff": "paper",
+    "#f8f9fa": "wash",
+    "#eaecf0": "header",
+    "#a2a9b1": "line",
+    "#c8ccd1": "lineSoft",
+    "#cef2e0": "mint",
+    "#fef6e7": "cream",
+    "#eaf3ff": "wash"
+  };
+  var TEXT = {
+    "#000": "ink",
+    "#000000": "ink",
+    "#202122": "ink",
+    "#333": "ink",
+    "#333333": "ink",
+    "#54595d": "muted",
+    "#3366cc": "link",
+    "#ba0000": "red"
+  };
+  var theme = LIGHT;
+  function setHtmlTheme(dark) {
+    theme = dark ? DARK : LIGHT;
+  }
+  function htmlTheme() {
+    return theme;
+  }
+  function mapFill(hex) {
+    if (theme === LIGHT) return hex;
+    const key = FILL[hex.toLowerCase()];
+    return key ? theme[key] : hex;
+  }
+  function mapText(hex) {
+    if (theme === LIGHT) return hex;
+    const key = TEXT[hex.toLowerCase()];
+    return key ? theme[key] : hex;
+  }
   function colorOf(style) {
     const v = style["background-color"] || style.background || "";
     const m = /#([0-9a-f]{3,8})\b/i.exec(v);
@@ -4500,7 +4569,7 @@ ${body.trim()}`;
     let h = m[1].toLowerCase();
     if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
     if (h.length > 6) h = h.slice(0, 6);
-    return "#" + h;
+    return mapFill("#" + h);
   }
   function hasBorder(style) {
     for (const key in style) {
@@ -4552,9 +4621,10 @@ ${body.trim()}`;
     const m = /\bclass="([^"]*)"/.exec(attrs);
     return !!m && m[1].split(/\s+/).indexOf(name) >= 0;
   }
-  function box(header, headerBg, body, bg = "#ffffff") {
-    const head = header ? `<tr><td bgcolor="${headerBg || "#eaecf0"}"><p><font size="4"><b>${header}</b></font></p></td></tr>` : "";
-    return `<table width="100%" cellspacing="0" cellpadding="10" border="1" bordercolor="#a2a9b1" bgcolor="${bg}">${head}<tr><td>${body}</td></tr></table><p></p>`;
+  function box(header, headerBg, body, bg = "") {
+    const fill = bg || theme.paper;
+    const head = header ? `<tr><td bgcolor="${headerBg || theme.header}"><p><font size="4" color="${theme.ink}"><b>${header}</b></font></p></td></tr>` : "";
+    return `<table width="100%" cellspacing="0" cellpadding="10" border="1" bordercolor="${theme.line}" bgcolor="${fill}">${head}<tr><td><font color="${theme.ink}">${body}</font></td></tr></table><p></p>`;
   }
   function headingRule() {
     return "<hr />";
@@ -4582,8 +4652,8 @@ ${body.trim()}`;
         continue;
       }
       const inner = transform(child.children);
-      if (child.tag === "th") html += `<th bgcolor="#eaecf0" align="center">${inner}</th>`;
-      else html += `<${child.tag}${child.attrs}>${inner}</${child.tag}>`;
+      if (child.tag === "th") html += `<th bgcolor="${theme.header}" align="center"><font color="${theme.ink}">${inner}</font></th>`;
+      else html += `<${child.tag}${child.attrs}><font color="${theme.ink}">${inner}</font></${child.tag}>`;
     }
     return html;
   }
@@ -4604,27 +4674,27 @@ ${body.trim()}`;
     }
     if (node.tag === "table") {
       if (hasClass(node.attrs, "wikitable")) {
-        return `<table width="100%" cellspacing="0" cellpadding="4" border="1" bordercolor="#a2a9b1" bgcolor="#f8f9fa">${wikiRows(node)}</table><p></p>`;
+        return `<table width="100%" cellspacing="0" cellpadding="4" border="1" bordercolor="${theme.line}" bgcolor="${theme.wash}">${wikiRows(node)}</table><p></p>`;
       }
       return `<table${node.attrs}>${transform(node.children)}</table>`;
     }
     if (node.tag === "a") {
       const inner2 = transform(node.children);
-      const colored = /\bnew\b/.test(node.attrs) ? `<font color="#ba0000">${inner2}</font>` : inner2;
+      const colored = /\bnew\b/.test(node.attrs) ? `<font color="${theme.red}">${inner2}</font>` : `<font color="${theme.link}">${inner2}</font>`;
       return `<a${node.attrs}>${colored}</a>`;
     }
     if (node.tag === "div" && isFlex(style)) {
       const cols = elements(node);
       let cells = "";
       for (let i = 0; i < cols.length; i++) cells += `<td valign="top">${transformOne(cols[i])}</td>`;
-      const border = hasBorder(style) ? ` border="1" bordercolor="#c8ccd1"` : "";
+      const border = hasBorder(style) ? ` border="1" bordercolor="${theme.lineSoft}"` : "";
       const bg = colorOf(style);
       return `<table width="100%" cellspacing="10" cellpadding="10"${border}${bg ? ` bgcolor="${bg}"` : ""}><tr>${cells}</tr></table><p></p>`;
     }
     if (node.tag === "div" && hasBorder(style)) {
       const kids = elements(node);
       let header = "";
-      let headerBg = "#eaecf0";
+      let headerBg = theme.header;
       let body = node.children;
       if (kids[0] && kids[0].tag === "div" && colorOf(styleFrom(kids[0].attrs))) {
         headerBg = colorOf(styleFrom(kids[0].attrs)) || headerBg;
@@ -4633,7 +4703,7 @@ ${body.trim()}`;
         while (idx < node.children.length && node.children[idx] !== kids[0]) idx++;
         body = node.children.slice(idx + 1);
       }
-      return box(header, headerBg, transform(body), colorOf(style) || "#ffffff");
+      return box(header, headerBg, transform(body), colorOf(style) || theme.paper);
     }
     if (node.tag === "div") {
       let inner2 = transform(node.children);
@@ -4646,7 +4716,7 @@ ${body.trim()}`;
       if (size.indexOf("2em") >= 0) inner2 = `<font size="6"><b>${inner2}</b></font>`;
       else if (size.indexOf("1.5") >= 0) inner2 = `<font size="5"><b>${inner2}</b></font>`;
       else if (size.indexOf("1.1") >= 0 || size.indexOf("1.15") >= 0) inner2 = `<font size="4"><b>${inner2}</b></font>`;
-      if (fg) inner2 = `<font color="#${fg[1]}">${inner2}</font>`;
+      if (fg) inner2 = `<font color="${mapText("#" + (fg[1].length === 3 ? fg[1][0] + fg[1][0] + fg[1][1] + fg[1][1] + fg[1][2] + fg[1][2] : fg[1]))}">${inner2}</font>`;
       const alignAttr = align === "center" || align === "right" ? ` align="${align}"` : "";
       const block = /<(p|ul|ol|table|h[1-6]|div)\b/i.test(inner2);
       const wrapped = block ? inner2 : `<p>${inner2}</p>`;
@@ -4662,7 +4732,7 @@ ${body.trim()}`;
     return html.replace(/<div\b[^>]*>[\s\S]{0,500}?Every page carries a status[\s\S]*?<\/div>/gi, "").replace(/<div\b[^>]*>[\s\S]{0,500}?Page status:[\s\S]*?change (?:its|this page'?s) status\.?[\s\S]{0,80}<\/div>/gi, "").replace(/<p\b[^>]*>[\s\S]{0,160}?Every page carries a status[\s\S]*?<\/p>/gi, "").replace(/<p\b[^>]*>[\s\S]{0,160}?Page status:[\s\S]*?change (?:its|this page'?s) status\.?[\s\S]{0,40}<\/p>/gi, "").replace(/Every page carries a status:[\s\S]{0,280}/gi, "").replace(/Page status:\s*(?:<b>[\s\S]*?<\/b>)?[\s\S]{0,220}change (?:its|this page'?s) status\.?/gi, "");
   }
   function qmlHtml(html) {
-    return transform(parseFragment(stripStatus(html)));
+    return `<font color="${theme.ink}">${transform(parseFragment(stripStatus(html)))}</font>`;
   }
 
   // basecamp/js/entry.ts
@@ -4832,9 +4902,13 @@ ${body.trim()}`;
     }
     return parts;
   }
+  function engineSetTheme(dark) {
+    setHtmlTheme(!!dark);
+  }
   function engineDiff(before, after) {
-    const rows = diffRows(before || "", after || "").replace(/<del\b[^>]*>/gi, '<font color="#8f0000">').replace(/<\/del>/gi, "</font>").replace(/<ins\b[^>]*>/gi, '<font color="#006400">').replace(/<\/ins>/gi, "</font>");
-    return `<table width="100%" cellspacing="0" cellpadding="4" border="1" bordercolor="#a2a9b1">${rows}</table>`;
+    const t = htmlTheme();
+    const rows = diffRows(before || "", after || "").replace(/<del\b[^>]*>/gi, `<font color="${t.del}">`).replace(/<\/del>/gi, "</font>").replace(/<ins\b[^>]*>/gi, `<font color="${t.ins}">`).replace(/<\/ins>/gi, "</font>");
+    return `<table width="100%" cellspacing="0" cellpadding="4" border="1" bordercolor="${t.line}" bgcolor="${t.wash}"><font color="${t.ink}">${rows}</font></table>`;
   }
   function normalizeUsername(raw) {
     const s = String(raw || "").replace(/_/g, " ").replace(/\s+/g, " ").trim();
@@ -4953,6 +5027,7 @@ var enginePreview = WikiEngine.enginePreview;
 var engineDiff = WikiEngine.engineDiff;
 var engineIsAdmin = WikiEngine.engineIsAdmin;
 var engineAuth = WikiEngine.engineAuth;
+var engineSetTheme = WikiEngine.engineSetTheme;
 var normalizeUsername = WikiEngine.normalizeUsername;
 var latestText = WikiEngine.latestText;
 var richText = WikiEngine.richText;

@@ -10,7 +10,7 @@ import { diffRows } from "../../src/lib/diff.ts";
 import { appendSection, replaceSection, sectionText } from "../../src/lib/sections.ts";
 import { bytesToHex, hexToBytes } from "./shims/utils.ts";
 import { decodeMessage, joinBase64Chunks } from "./bytes.ts";
-import { qmlHtml } from "./qml-html.ts";
+import { qmlHtml, setHtmlTheme, htmlTheme } from "./qml-html.ts";
 
 export function deriveSeed(name: string, password: string) {
   const salt = utf8ToBytes("logos-wiki/v1/" + name.normalize("NFC"));
@@ -233,13 +233,18 @@ export function splitArticleHtml(html: string) {
   return parts;
 }
 
+export function engineSetTheme(dark: boolean) {
+  setHtmlTheme(!!dark);
+}
+
 export function engineDiff(before: string, after: string) {
+  const t = htmlTheme();
   const rows = diffRows(before || "", after || "")
-    .replace(/<del\b[^>]*>/gi, '<font color="#8f0000">')
+    .replace(/<del\b[^>]*>/gi, `<font color="${t.del}">`)
     .replace(/<\/del>/gi, "</font>")
-    .replace(/<ins\b[^>]*>/gi, '<font color="#006400">')
+    .replace(/<ins\b[^>]*>/gi, `<font color="${t.ins}">`)
     .replace(/<\/ins>/gi, "</font>");
-  return `<table width="100%" cellspacing="0" cellpadding="4" border="1" bordercolor="#a2a9b1">${rows}</table>`;
+  return `<table width="100%" cellspacing="0" cellpadding="4" border="1" bordercolor="${t.line}" bgcolor="${t.wash}"><font color="${t.ink}">${rows}</font></table>`;
 }
 
 export function normalizeUsername(raw: string) {

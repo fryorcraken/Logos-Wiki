@@ -6,28 +6,46 @@ Item {
     id: root
     property bool creating: false
     property bool busy: false
+    property bool dark: false
     property string sitename: "wiki"
+    property string error: ""
+    property string waitText: ""
+    property string localError: ""
     signal loginRequested(string name, string password, bool remember)
     signal createRequested(string name, string password, bool remember)
     signal switchMode
     signal openUrl(string url)
 
+    readonly property color ink: dark ? "#eaecf0" : "#202122"
+    readonly property color muted: dark ? "#a2a9b1" : "#54595d"
+    readonly property color line: dark ? "#54595d" : "#a2a9b1"
+    readonly property color paper: dark ? "#101418" : "#ffffff"
+    readonly property color link: dark ? "#88a3e8" : "#3366cc"
+    readonly property string linkHex: dark ? "#88a3e8" : "#3366cc"
+    readonly property color danger: dark ? "#fd7865" : "#8b0000"
+    readonly property string shownError: localError || error
+    readonly property string statusText: waitText || (creating
+        ? "Creating your account… this can take about a minute."
+        : "Logging in… this can take about a minute.")
+
+    onErrorChanged: localError = ""
+
     function submit() {
         if (root.busy) return
         if (creating) {
             if (password.text !== retype.text) {
-                errorText.text = "The passwords you entered do not match."
+                localError = "The passwords you entered do not match."
                 return
             }
             if (password.text.length < 10) {
-                errorText.text = "Passwords must be at least 10 characters."
+                localError = "Passwords must be at least 10 characters."
                 return
             }
-            errorText.text = ""
+            localError = ""
             createRequested(name.text, password.text, false)
             return
         }
-        errorText.text = ""
+        localError = ""
         loginRequested(name.text, password.text, remember.checked)
     }
 
@@ -48,17 +66,26 @@ Item {
             spacing: 10
 
             Text {
-                id: errorText
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                color: "#8b0000"
+                color: root.danger
                 font.pixelSize: 14
-                visible: text.length
+                visible: root.shownError.length && !root.busy
+                text: root.shownError
+            }
+
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                color: root.muted
+                font.pixelSize: 14
+                visible: root.busy
+                text: root.statusText
             }
 
             Text {
                 text: "Username"
-                color: "#202122"
+                color: root.ink
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
             }
@@ -68,12 +95,20 @@ Item {
                 Layout.preferredHeight: 36
                 placeholderText: "Enter your username"
                 selectByMouse: true
+                enabled: !root.busy
+                color: root.ink
                 onAccepted: root.submit()
+                background: Rectangle {
+                    radius: 2
+                    color: root.paper
+                    border.width: 1
+                    border.color: name.activeFocus ? root.link : root.line
+                }
             }
 
             Text {
                 text: "Password"
-                color: "#202122"
+                color: root.ink
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
             }
@@ -84,13 +119,21 @@ Item {
                 placeholderText: creating ? "Enter a password" : "Enter your password"
                 echoMode: TextInput.Password
                 selectByMouse: true
+                enabled: !root.busy
+                color: root.ink
                 onAccepted: root.submit()
+                background: Rectangle {
+                    radius: 2
+                    color: root.paper
+                    border.width: 1
+                    border.color: password.activeFocus ? root.link : root.line
+                }
             }
             Text {
                 visible: root.creating
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                color: "#54595d"
+                color: root.muted
                 font.pixelSize: 13
                 text: "Your password is your key: it cannot be reset, so store it safely. Use a unique password of at least 10 characters."
             }
@@ -98,7 +141,7 @@ Item {
             Text {
                 visible: root.creating
                 text: "Confirm password"
-                color: "#202122"
+                color: root.ink
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
             }
@@ -110,19 +153,31 @@ Item {
                 placeholderText: "Enter password again"
                 echoMode: TextInput.Password
                 selectByMouse: true
+                enabled: !root.busy
+                color: root.ink
                 onAccepted: root.submit()
+                background: Rectangle {
+                    radius: 2
+                    color: root.paper
+                    border.width: 1
+                    border.color: retype.activeFocus ? root.link : root.line
+                }
             }
 
             CheckBox {
                 id: remember
                 visible: !root.creating
+                enabled: !root.busy
                 text: "Keep me logged in"
+                palette.windowText: root.ink
+                palette.text: root.ink
             }
 
             WikiButton {
                 primary: true
+                dark: root.dark
                 enabled: !root.busy
-                text: root.busy ? "Please wait…" : (creating ? "Create your account" : "Log in")
+                text: creating ? "Create your account" : "Log in"
                 onClicked: root.submit()
             }
 
@@ -132,7 +187,7 @@ Item {
                 wrapMode: Text.Wrap
                 textFormat: Text.RichText
                 font.pixelSize: 14
-                text: '<a href="https://www.mediawiki.org/wiki/Special:MyLanguage/Help:Logging_in">Help with logging in</a>'
+                text: '<a href="https://www.mediawiki.org/wiki/Special:MyLanguage/Help:Logging_in"><font color="' + root.linkHex + '">Help with logging in</font></a>'
                 onLinkActivated: function (link) { root.openUrl(link) }
             }
 
@@ -142,9 +197,10 @@ Item {
                 Text {
                     text: "Don't have an account?"
                     font.pixelSize: 14
-                    color: "#202122"
+                    color: root.ink
                 }
                 WikiButton {
+                    dark: root.dark
                     text: "Join " + root.sitename
                     onClicked: root.switchMode()
                 }

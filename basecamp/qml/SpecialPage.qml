@@ -9,9 +9,16 @@ Flickable {
     property string adminKey: ""
     property string snapshotCid: ""
     property bool isAdmin: false
+    property bool dark: false
     signal openTitle(string name)
     signal saveSettings(string nextAdmin, string nextSnapshot)
     signal saveTrusted(string editors)
+
+    readonly property color ink: dark ? "#eaecf0" : "#202122"
+    readonly property color muted: dark ? "#a2a9b1" : "#54595d"
+    readonly property color line: dark ? "#54595d" : "#a2a9b1"
+    readonly property color paper: dark ? "#101418" : "#ffffff"
+    readonly property color link: dark ? "#88a3e8" : "#3366cc"
 
     clip: true
     contentHeight: body.implicitHeight + 40
@@ -47,7 +54,7 @@ Flickable {
             visible: title === "Special:TrustedEditors"
             width: parent.width
             wrapMode: Text.Wrap
-            color: "#54595d"
+            color: root.muted
             font.pixelSize: 15
             text: "Trusted editors can edit every page except those in the MediaWiki namespace, and can upload files. Other registered users can edit their own user and user talk pages. Only the administrator can change this list."
         }
@@ -56,7 +63,7 @@ Flickable {
             visible: title === "Special:TrustedEditors" && !(Wiki.engineTrusted() || []).length && !root.isAdmin
             width: parent.width
             wrapMode: Text.Wrap
-            color: "#54595d"
+            color: root.muted
             font.pixelSize: 14
             text: "There are no trusted editors yet."
         }
@@ -69,7 +76,7 @@ Flickable {
                     if (modelData.user) return Wiki.formatDateTime(modelData.ts) + " — " + modelData.user + " edited " + modelData.page + (modelData.summary ? " (" + modelData.summary + ")" : "")
                     return modelData.page
                 }
-                color: "#3366cc"
+                color: root.link
                 font.pixelSize: 16
                 width: body.width
                 wrapMode: Text.Wrap
@@ -88,10 +95,10 @@ Flickable {
             Text {
                 width: parent.width
                 wrapMode: Text.Wrap
-                color: "#54595d"
+                color: root.muted
                 text: "Defaults are already set so the imported wiki loads on first open. Change these only to follow a different event log. Empty fields restore the shipped admin key and snapshot CID."
             }
-            Text { text: "Topic: " + Wiki.TOPIC; color: "#54595d"; font.pixelSize: 12 }
+            Text { text: "Topic: " + Wiki.TOPIC; color: root.muted; font.pixelSize: 12 }
             TextField {
                 id: adminField
                 width: parent.width
@@ -99,6 +106,13 @@ Flickable {
                 placeholderText: "Admin public key (64 hex chars)"
                 text: root.adminKey
                 selectByMouse: true
+                color: root.ink
+                background: Rectangle {
+                    radius: 2
+                    color: root.paper
+                    border.width: 1
+                    border.color: adminField.activeFocus ? root.link : root.line
+                }
             }
             TextField {
                 id: cidField
@@ -107,9 +121,17 @@ Flickable {
                 placeholderText: "Snapshot CID (optional)"
                 text: root.snapshotCid
                 selectByMouse: true
+                color: root.ink
+                background: Rectangle {
+                    radius: 2
+                    color: root.paper
+                    border.width: 1
+                    border.color: cidField.activeFocus ? root.link : root.line
+                }
             }
             WikiButton {
                 primary: true
+                dark: root.dark
                 text: "Save"
                 onClicked: root.saveSettings(adminField.text.trim(), cidField.text.trim())
             }
@@ -123,12 +145,12 @@ Flickable {
                 text: "Edit the list of trusted editors"
                 font.pixelSize: 16
                 font.bold: true
-                color: "#202122"
+                color: root.ink
             }
             Text {
                 width: parent.width
                 wrapMode: Text.Wrap
-                color: "#54595d"
+                color: root.muted
                 font.pixelSize: 14
                 text: "One username per line. Trusted editors can edit every page outside the MediaWiki namespace and upload files."
             }
@@ -139,10 +161,17 @@ Flickable {
                 wrapMode: TextArea.Wrap
                 selectByMouse: true
                 font.family: "monospace"
+                color: root.ink
                 text: (Wiki.engineTrusted() || []).join("\n")
+                background: Rectangle {
+                    color: root.paper
+                    border.width: 1
+                    border.color: editorsField.activeFocus ? root.link : root.line
+                }
             }
             WikiButton {
                 primary: true
+                dark: root.dark
                 text: "Save trusted editors"
                 onClicked: root.saveTrusted(editorsField.text)
             }
