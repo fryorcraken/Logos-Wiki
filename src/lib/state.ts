@@ -126,11 +126,12 @@ export class Wiki {
 
   stats() {
     let articles = 0;
-    for (const page of this.pages.values()) {
+    this.pages.forEach((page) => {
       const text = page.revs.at(-1)!.text;
       if (page.title.ns === 0 && !/^\s*#redirect/i.test(text) && text.includes("[[")) articles++;
-    }
-    const users = new Set([...this.accounts.keys(), ...this.reserved]);
+    });
+    const users = new Set(this.accounts.keys());
+    this.reserved.forEach((name) => users.add(name));
     users.delete("MediaWiki default");
     return { articles, pages: this.pages.size, edits: this.revisions.length, users: users.size };
   }

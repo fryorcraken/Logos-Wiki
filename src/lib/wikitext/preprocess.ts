@@ -85,9 +85,9 @@ export function expandTemplates(text: string, source: Source, meta: Meta) {
   const tpl = (parts: Part[], frame: Frame): string => {
     const literal = () => `{{${parts.map((p) => run(p, frame)).join("|")}}}`;
     const name = run(parts[0], frame).trim().replace(/^(safe)?subst:/i, "");
-    const sort = /^DEFAULTSORT(KEY)?:(.*)$/is.exec(name);
+    const sort = /^DEFAULTSORT(?:KEY)?:([\s\S]*)$/i.exec(name);
     if (sort) {
-      meta.sortKey = sort[2].trim();
+      meta.sortKey = sort[1].trim();
       return "";
     }
     if (parts.length === 1) {

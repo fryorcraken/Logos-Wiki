@@ -6,7 +6,6 @@ import "wiki.js" as Wiki
 Flickable {
     id: root
     property string title: ""
-    property var wiki
     property string adminKey: ""
     property string snapshotCid: ""
     signal openTitle(string name)
@@ -26,10 +25,9 @@ Flickable {
     }
 
     function items() {
-        if (!wiki) return []
-        if (title === "Special:RecentChanges") return Wiki.recent(wiki, 100)
+        if (title === "Special:RecentChanges") return Wiki.engineRecent(100)
         if (title === "Special:AllPages") {
-            return Wiki.pageTitles(wiki).map(function (name) { return { page: name } })
+            return Wiki.engineTitles().map(function (name) { return { page: name } })
         }
         if (title === "Special:SpecialPages") {
             return [
@@ -40,7 +38,7 @@ Flickable {
             ]
         }
         if (title === "Special:TrustedEditors") {
-            return (wiki.trusted || []).map(function (name) { return { page: "User:" + name, label: name } })
+            return (Wiki.engineTrusted() || []).map(function (name) { return { page: "User:" + name, label: name } })
         }
         return []
     }
@@ -64,7 +62,7 @@ Flickable {
             width: parent.width
             wrapMode: Text.Wrap
             color: "#54595d"
-            text: (wiki && wiki.trusted && wiki.trusted.length)
+            text: (Wiki.engineTrusted().length)
                   ? "These users may edit every page except the MediaWiki namespace."
                   : "No trusted editors yet. Trust events are signed by the admin key."
         }
@@ -97,7 +95,7 @@ Flickable {
                 width: parent.width
                 wrapMode: Text.Wrap
                 color: "#54595d"
-                text: "The admin public key is required to replay imported history and trust. Paste the same WIKI_ADMIN_KEY the web instance uses. Snapshot CID bootstraps the log from Storage."
+                text: "Defaults are already set so the imported wiki loads on first open. Change these only to follow a different event log. Empty fields restore the shipped admin key and snapshot CID."
             }
             Text { text: "Topic: " + Wiki.TOPIC; color: "#54595d"; font.pixelSize: 12 }
             TextField {
@@ -116,7 +114,8 @@ Flickable {
                 text: root.snapshotCid
                 selectByMouse: true
             }
-            Button {
+            WikiButton {
+                primary: true
                 text: "Save"
                 onClicked: root.saveSettings(adminField.text.trim(), cidField.text.trim())
             }

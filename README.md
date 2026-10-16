@@ -63,7 +63,7 @@ A native QML app lives in [`basecamp/`](basecamp/). In Basecamp 0.3.2 Package Ma
 https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/basecamp/logos-repo.json
 ```
 
-then install **Logos Wiki**. See [basecamp/README.md](basecamp/README.md) for the local `.lgx` fallback, settings (admin key / snapshot CID), and how to pack a release.
+then install **Logos Wiki**. The app ships the imported LAN snapshot, so Main Page has content on first open. See [basecamp/README.md](basecamp/README.md) for the local `.lgx` fallback and how to pack a release.
 
 ## License
 

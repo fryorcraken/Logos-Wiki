@@ -3,11 +3,11 @@ import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
 import QtQuick.LocalStorage 2.15
 import "wiki.js" as Wiki
+import "snapshot.js" as Snap
 
 Item {
     id: root
 
-    property var wiki: Wiki.createWiki("")
     property string adminKey: ""
     property string snapshotCid: ""
     property string currentTitle: Wiki.MAIN_PAGE
@@ -22,7 +22,10 @@ Item {
     property var envelopes: []
     property var article: ({ html: "", title: Wiki.MAIN_PAGE, missing: true, categories: [], headings: [] })
     property var dlChunks: ({})
+    property bool menuOpen: false
+    property int pageCount: 0
     readonly property bool hasLogos: typeof logos !== "undefined" && logos && logos.callModuleAsync
+    readonly property string shippedAdmin: "ee7a5fc7ab70a820df10a4d3ba12f2e3f830c3f486b0d645eded9e8ff729ce08"
     readonly property color ink: "#202122"
     readonly property color muted: "#54595d"
     readonly property color link: "#3366cc"
@@ -57,30 +60,29 @@ Item {
     }
 
     function resetWiki() {
-        wiki = Wiki.createWiki(adminKey)
-        for (var i = 0; i < envelopes.length; i++) Wiki.ingest(wiki, envelopes[i])
+        Wiki.resetEngine(adminKey)
+        for (var i = 0; i < envelopes.length; i++) Wiki.ingestEnvelope(envelopes[i])
         renderCurrent()
     }
 
     function rememberEnvelope(envelope) {
-        var event = Wiki.verify(envelope)
-        if (!event || wiki.has(event.id)) return
-        Wiki.ingest(wiki, envelope)
+        if (!Wiki.ingestEnvelope(envelope)) return
         envelopes.push(envelope)
         kvSet("envelopes", JSON.stringify(envelopes))
     }
 
     function renderCurrent() {
-        var hop = Wiki.followRedirect(wiki, currentTitle)
+        var hop = Wiki.engineFollowRedirect(currentTitle)
         if (hop.hops && hop.title !== currentTitle) currentTitle = hop.title
-        article = Wiki.renderPage(wiki, currentTitle, userKey !== "" && Wiki.canEditPage(wiki, userKey, currentTitle))
+        article = Wiki.engineRenderPage(currentTitle, userKey !== "" && Wiki.engineCanEdit(userKey, currentTitle))
+        pageCount = Wiki.engineStats().pages
         if (mode === "article" || mode === "missing") mode = article.missing ? "missing" : "article"
     }
 
     function openTitle(title) {
         if (!title) return
         if (title === "Special:Random") {
-            var titles = Wiki.pageTitles(wiki)
+            var titles = Wiki.engineTitles()
             if (!titles.length) {
                 notice = "No pages yet."
                 return
@@ -96,6 +98,11 @@ Item {
         currentTitle = title
         mode = "article"
         renderCurrent()
+    }
+
+    function goMenu(title) {
+        menuOpen = false
+        openTitle(title)
     }
 
     function openLink(link) {
@@ -188,14 +195,41 @@ Item {
         }
     }
 
-    function ingestSnapshot(text) {
+    function loadBundledSnapshot(quiet) {
+        try {
+            var list = Snap.EVENTS
+            if (!list || !list.length) {
+                notice = "Bundled snapshot is empty"
+                return 0
+            }
+            Wiki.ingestSnapshotEvents(list)
+            renderCurrent()
+            var pages = Wiki.engineStats().pages
+            if (pages && !quiet) notice = pages + " pages loaded"
+            return pages
+        } catch (e) {
+            notice = "Snapshot load failed: " + e
+            return 0
+        }
+    }
+
+    function ingestSnapshot(text, quiet) {
+        if (!text) return 0
         var lines = text.split("\n")
+        var added = 0
         for (var i = 0; i < lines.length; i++) {
             if (!lines[i]) continue
-            try { rememberEnvelope(JSON.parse(lines[i])) } catch (e) {}
+            try {
+                var envelope = JSON.parse(lines[i])
+                if (!Wiki.ingestEnvelope(envelope)) continue
+                envelopes.push(envelope)
+                added++
+            } catch (e) {}
         }
+        if (added) kvSet("envelopes", JSON.stringify(envelopes))
         renderCurrent()
-        notice = "Loaded " + wiki.log.length + " events"
+        if (!quiet && added) notice = "Loaded " + added + " events"
+        return added
     }
 
     function downloadSnapshot(cid) {
@@ -269,7 +303,7 @@ Item {
     function applySession(seed, name, remember, created) {
         seedHex = Wiki.bytesToHex(seed)
         userKey = Wiki.publicKey(seed)
-        userName = Wiki.accountName(wiki, userKey)
+        userName = Wiki.engineAccountName(userKey)
         if (remember) kvSet("session", JSON.stringify({ seedHex: seedHex, name: name }))
         else kvSet("session", "")
         if (created) {
@@ -306,7 +340,7 @@ Item {
         try {
             var seed = Wiki.deriveSeed(name, password)
             userKey = Wiki.publicKey(seed)
-            if (wiki.names.get(userKey) || wiki.accounts.get(name)) {
+            if (Wiki.engineAccountTaken(userKey, name)) {
                 notice = "That account already exists. Log in instead."
                 busyText = ""
                 return
@@ -328,11 +362,12 @@ Item {
     }
 
     function saveSettings(nextAdmin, nextSnapshot) {
-        adminKey = (nextAdmin || "").toLowerCase()
-        snapshotCid = nextSnapshot || ""
+        adminKey = (nextAdmin || Wiki.ADMIN_KEY || shippedAdmin).toLowerCase()
+        snapshotCid = nextSnapshot || Wiki.SNAPSHOT_CID || ""
         kvSet("adminKey", adminKey)
         kvSet("snapshotCid", snapshotCid)
         resetWiki()
+        loadBundledSnapshot(true)
         if (snapshotCid && storageStatus === "online") downloadSnapshot(snapshotCid)
         notice = "Settings saved"
         mode = "article"
@@ -344,7 +379,7 @@ Item {
             notice = "Log in to edit."
             return
         }
-        if (!Wiki.canEditPage(wiki, userKey, title)) {
+        if (!Wiki.engineCanEdit(userKey, title)) {
             notice = "You cannot edit this page."
             return
         }
@@ -355,8 +390,8 @@ Item {
     }
 
     function boot() {
-        adminKey = kvGet("adminKey", "")
-        snapshotCid = kvGet("snapshotCid", "")
+        adminKey = (kvGet("adminKey", "") || Wiki.ADMIN_KEY || shippedAdmin).toLowerCase()
+        snapshotCid = kvGet("snapshotCid", "") || Wiki.SNAPSHOT_CID || ""
         try { envelopes = JSON.parse(kvGet("envelopes", "[]")) } catch (e) { envelopes = [] }
         if (!(envelopes instanceof Array)) envelopes = []
         try {
@@ -367,9 +402,10 @@ Item {
             }
         } catch (e) {}
         resetWiki()
-        if (userKey) userName = Wiki.accountName(wiki, userKey)
+        loadBundledSnapshot(false)
+        if (userKey) userName = Wiki.engineAccountName(userKey)
         if (!hasLogos) {
-            notice = "Running without the Logos bridge. Pages come from the local cache only."
+            notice = notice || "Running without the Logos bridge. Pages come from the local cache only."
             return
         }
         logos.onModuleEvent("delivery_module", "messageReceived")
@@ -397,7 +433,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
-        color: root.wash
+        color: root.paper
     }
 
     ColumnLayout {
@@ -406,46 +442,92 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 52
+            Layout.preferredHeight: 56
             color: root.header
-            border.color: root.line
-            border.width: 0
+
+            Rectangle {
+                anchors.bottom: parent.bottom
+                width: parent.width
+                height: 1
+                color: root.line
+            }
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 16
-                anchors.rightMargin: 16
-                spacing: 12
+                anchors.leftMargin: 8
+                anchors.rightMargin: 12
+                spacing: 8
 
-                Text {
-                    text: Wiki.SITENAME
-                    color: root.ink
-                    font.pixelSize: 20
-                    font.bold: true
+                Item {
+                    Layout.preferredWidth: 40
+                    Layout.preferredHeight: 40
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.menuOpen = !root.menuOpen
+                    }
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 4
+                        Repeater {
+                            model: 3
+                            Rectangle {
+                                width: 18
+                                height: 2
+                                radius: 1
+                                color: root.ink
+                            }
+                        }
+                    }
+                }
+
+                Image {
+                    source: "logo.png"
+                    Layout.preferredWidth: 32
+                    Layout.preferredHeight: 32
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    mipmap: true
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.openTitle(Wiki.MAIN_PAGE)
                     }
                 }
+
                 Text {
-                    text: "Logos Wiki"
-                    color: root.muted
-                    font.pixelSize: 12
+                    text: Wiki.SITENAME
+                    color: root.ink
+                    font.pixelSize: 18
+                    font.weight: Font.DemiBold
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.openTitle(Wiki.MAIN_PAGE)
+                    }
                 }
+
                 Item { Layout.fillWidth: true }
+
                 TextField {
                     id: searchField
-                    Layout.preferredWidth: 220
+                    Layout.preferredWidth: 240
+                    Layout.preferredHeight: 32
                     placeholderText: "Search or go to"
                     selectByMouse: true
                     onAccepted: root.openTitle(text)
+                    background: Rectangle {
+                        radius: 2
+                        color: root.paper
+                        border.color: searchField.activeFocus ? root.link : root.line
+                    }
                 }
-                Button {
+                WikiButton {
                     text: "Go"
                     onClicked: root.openTitle(searchField.text)
                 }
-                Button {
+                WikiButton {
+                    primary: !root.userName
                     text: root.userName ? root.userName : "Log in"
                     onClicked: root.mode = root.userName ? "account" : "login"
                 }
@@ -467,120 +549,192 @@ Item {
             }
         }
 
-        SplitView {
+        Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            orientation: Qt.Horizontal
+            color: root.paper
 
-            Rectangle {
-                SplitView.preferredWidth: 200
-                SplitView.minimumWidth: 160
-                color: root.wash
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 0
 
-                Column {
-                    anchors.fill: parent
-                    anchors.margins: 16
-                    spacing: 8
-
-                    Repeater {
-                        model: [
-                            { label: "Main Page", title: Wiki.MAIN_PAGE },
-                            { label: "Recent changes", title: "Special:RecentChanges" },
-                            { label: "All pages", title: "Special:AllPages" },
-                            { label: "Random page", title: "Special:Random" },
-                            { label: "Special pages", title: "Special:SpecialPages" },
-                            { label: "Settings", title: "Special:Settings" }
-                        ]
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 48
+                    color: root.paper
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 28
+                        anchors.rightMargin: 8
+                        spacing: 4
                         Text {
-                            text: modelData.label
-                            color: root.link
-                            font.pixelSize: 13
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.openTitle(modelData.title)
+                            text: root.currentTitle
+                            color: root.ink
+                            font.pixelSize: 22
+                            font.bold: true
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                        }
+                        Repeater {
+                            model: [
+                                { label: "Read", mode: "article" },
+                                { label: "Edit", mode: "edit" },
+                                { label: "History", mode: "history" }
+                            ]
+                            Item {
+                                visible: !/^Special:/i.test(root.currentTitle)
+                                width: visible ? tabLabel.implicitWidth + 24 : 0
+                                height: 48
+                                Text {
+                                    id: tabLabel
+                                    anchors.centerIn: parent
+                                    text: modelData.label
+                                    font.pixelSize: 14
+                                    font.weight: root.mode === modelData.mode ? Font.DemiBold : Font.Normal
+                                    color: root.mode === modelData.mode ? root.ink : root.muted
+                                }
+                                Rectangle {
+                                    anchors.bottom: parent.bottom
+                                    width: parent.width
+                                    height: 3
+                                    color: root.mode === modelData.mode ? root.link : "transparent"
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (modelData.mode === "article") {
+                                            root.mode = "article"
+                                            root.renderCurrent()
+                                            return
+                                        }
+                                        if (modelData.mode === "history") {
+                                            root.mode = "history"
+                                            return
+                                        }
+                                        if (!root.userKey) {
+                                            root.mode = "login"
+                                            root.notice = "Log in to edit."
+                                            return
+                                        }
+                                        if (!Wiki.engineCanEdit(root.userKey, root.currentTitle)) {
+                                            root.notice = "You cannot edit this page."
+                                            return
+                                        }
+                                        root.mode = "edit"
+                                    }
+                                }
                             }
                         }
                     }
+                }
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: root.line }
 
-                    Item { height: 16 }
-                    Text {
-                        text: "Delivery: " + root.deliveryStatus
-                        color: root.muted
-                        font.pixelSize: 11
+                Loader {
+                    id: pageLoader
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    sourceComponent: {
+                        if (root.mode === "edit") return editPage
+                        if (root.mode === "history") return historyPage
+                        if (root.mode === "login" || root.mode === "create") return authPage
+                        if (root.mode === "account") return accountPage
+                        if (root.mode === "special" || /^Special:/i.test(root.currentTitle)) return specialPage
+                        return articlePage
                     }
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        color: "#99000000"
+        visible: root.menuOpen
+        z: 20
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.menuOpen = false
+        }
+    }
+
+    Rectangle {
+        id: drawer
+        width: 280
+        height: parent.height
+        x: root.menuOpen ? 0 : -width
+        z: 21
+        color: root.paper
+        Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+
+        Rectangle {
+            anchors.right: parent.right
+            width: 1
+            height: parent.height
+            color: root.line
+        }
+
+        Column {
+            anchors.fill: parent
+            anchors.margins: 16
+            spacing: 4
+
+            Row {
+                spacing: 10
+                height: 40
+                Image {
+                    source: "logo.png"
+                    width: 36
+                    height: 36
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Column {
+                    anchors.verticalCenter: parent.verticalCenter
+                    Text { text: Wiki.SITENAME; font.pixelSize: 16; font.weight: Font.DemiBold; color: root.ink }
+                    Text { text: "Logos Wiki"; font.pixelSize: 11; color: root.muted }
+                }
+            }
+
+            Item { height: 12 }
+
+            Repeater {
+                model: [
+                    { label: "Main Page", title: Wiki.MAIN_PAGE },
+                    { label: "Recent changes", title: "Special:RecentChanges" },
+                    { label: "All pages", title: "Special:AllPages" },
+                    { label: "Random page", title: "Special:Random" },
+                    { label: "Special pages", title: "Special:SpecialPages" },
+                    { label: "Settings", title: "Special:Settings" }
+                ]
+                Rectangle {
+                    width: drawer.width - 32
+                    height: 36
+                    radius: 2
+                    color: itemArea.containsMouse ? root.wash : "transparent"
                     Text {
-                        text: "Storage: " + root.storageStatus
-                        color: root.muted
-                        font.pixelSize: 11
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        anchors.leftMargin: 8
+                        text: modelData.label
+                        color: root.link
+                        font.pixelSize: 14
                     }
-                    Text {
-                        text: wiki && wiki.stats ? wiki.stats().pages + " pages" : ""
-                        color: root.muted
-                        font.pixelSize: 11
+                    MouseArea {
+                        id: itemArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.goMenu(modelData.title)
                     }
                 }
             }
 
-            Rectangle {
-                SplitView.fillWidth: true
-                color: root.paper
-
-                ColumnLayout {
-                    anchors.fill: parent
-                    spacing: 0
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 44
-                        color: root.paper
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 28
-                            anchors.rightMargin: 16
-                            Text {
-                                text: root.currentTitle
-                                color: root.ink
-                                font.pixelSize: 22
-                                font.bold: true
-                                Layout.fillWidth: true
-                                elide: Text.ElideRight
-                            }
-                            Button {
-                                text: "Read"
-                                visible: !/^Special:/i.test(root.currentTitle)
-                                onClicked: { root.mode = "article"; root.renderCurrent() }
-                            }
-                            Button {
-                                text: "Edit"
-                                visible: !/^Special:/i.test(root.currentTitle)
-                                enabled: root.userKey !== "" && Wiki.canEditPage(wiki, root.userKey, root.currentTitle)
-                                onClicked: root.mode = "edit"
-                            }
-                            Button {
-                                text: "History"
-                                visible: !/^Special:/i.test(root.currentTitle)
-                                onClicked: root.mode = "history"
-                            }
-                        }
-                    }
-                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: root.line }
-
-                    Loader {
-                        id: pageLoader
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        sourceComponent: {
-                            if (root.mode === "edit") return editPage
-                            if (root.mode === "history") return historyPage
-                            if (root.mode === "login" || root.mode === "create") return authPage
-                            if (root.mode === "account") return accountPage
-                            if (root.mode === "special" || /^Special:/i.test(root.currentTitle)) return specialPage
-                            return articlePage
-                        }
-                    }
-                }
-            }
+            Item { height: 16 }
+            Text { text: "Delivery: " + root.deliveryStatus; color: root.muted; font.pixelSize: 11 }
+            Text { text: "Storage: " + root.storageStatus; color: root.muted; font.pixelSize: 11 }
+            Text { text: root.pageCount + " pages"; color: root.muted; font.pixelSize: 11 }
         }
     }
 
@@ -612,15 +766,7 @@ Item {
             pageTitle: root.currentTitle
             source: root.article && root.article.source ? root.article.source : ""
             previewFn: function (text) {
-                var title = Wiki.parseTitle(root.currentTitle)
-                if (!title) return "<p>Invalid title.</p>"
-                return Wiki.richText(Wiki.render(text, {
-                    title: title,
-                    exists: function (full) { return wiki.pages.has(full) },
-                    template: function (full) { return Wiki.latestText(wiki, full) },
-                    file: function () { return null },
-                    stats: wiki.stats()
-                }).html)
+                return Wiki.enginePreview(root.currentTitle, text)
             }
             onCancelled: { root.mode = "article"; root.renderCurrent() }
             onPublished: root.publishEdit(root.currentTitle, text, summary)
@@ -630,10 +776,7 @@ Item {
     Component {
         id: historyPage
         HistoryPage {
-            revisions: {
-                var page = wiki.pages.get(root.currentTitle)
-                return page ? page.revs.slice().reverse() : []
-            }
+            revisions: Wiki.engineRevisions(root.currentTitle)
         }
     }
 
@@ -660,7 +803,7 @@ Item {
                 spacing: 12
                 Text { text: "Signed in as " + root.userName; font.pixelSize: 16; color: root.ink }
                 Text { text: "Key: " + root.userKey; font.pixelSize: 12; color: root.muted; wrapMode: Text.Wrap; width: parent.width }
-                Button { text: "Log out"; onClicked: { root.logout(); root.mode = "article" } }
+                WikiButton { text: "Log out"; onClicked: { root.logout(); root.mode = "article" } }
             }
         }
     }
@@ -669,7 +812,6 @@ Item {
         id: specialPage
         SpecialPage {
             title: root.currentTitle
-            wiki: root.wiki
             adminKey: root.adminKey
             snapshotCid: root.snapshotCid
             onOpenTitle: root.openTitle(name)

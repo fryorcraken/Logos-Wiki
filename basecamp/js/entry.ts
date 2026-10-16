@@ -1,6 +1,6 @@
 import { scrypt } from "@noble/hashes/scrypt.js";
 import { utf8ToBytes } from "@noble/hashes/utils.js";
-import { MAX_TEXT, MAIN_PAGE, PRESET, SITENAME, TOPIC } from "./config.ts";
+import { ADMIN_KEY, MAX_TEXT, MAIN_PAGE, PRESET, SITENAME, SNAPSHOT_CID, TOPIC } from "./config.ts";
 import { canonicalTitle, validUsername, Wiki, type Page } from "../../src/lib/state.ts";
 import { publicKey, sign, verify, type Body, type Envelope } from "../../src/lib/events.ts";
 import { parseTitle, type Title } from "../../src/lib/title.ts";
@@ -17,6 +17,7 @@ export function deriveSeed(name: string, password: string) {
 }
 
 export {
+  ADMIN_KEY,
   appendSection,
   bytesToHex,
   canonicalTitle,
@@ -38,6 +39,7 @@ export {
   sectionText,
   sign,
   SITENAME,
+  SNAPSHOT_CID,
   TOPIC,
   validUsername,
   verify,
@@ -53,6 +55,18 @@ export function ingest(wiki: Wiki, envelope: unknown) {
   if (!event || wiki.has(event.id)) return null;
   wiki.add(event);
   return event;
+}
+
+export function ingestEvents(wiki: Wiki, events: { id: string }[]) {
+  if (!events) return 0;
+  let n = 0;
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
+    if (!event || !event.id || wiki.has(event.id)) continue;
+    wiki.add(event as Parameters<Wiki["add"]>[0]);
+    n++;
+  }
+  return n;
 }
 
 export function latestText(wiki: Wiki, full: string) {
@@ -140,4 +154,95 @@ export function followRedirect(wiki: Wiki, rawTitle: string) {
   const target = (page as { redirect?: Title }).redirect;
   if (!target) return { title: page.title, hops: 0 as const };
   return { title: target.full, hops: 1 as const, from: page.title };
+}
+
+let session = new Wiki("");
+
+export function resetEngine(admin: string) {
+  session = new Wiki((admin || "").toLowerCase());
+}
+
+export function ingestEnvelope(envelope: unknown) {
+  return ingest(session, envelope);
+}
+
+export function ingestSnapshotEvents(events: { id: string }[]) {
+  return ingestEvents(session, events);
+}
+
+export function engineHas(id: string) {
+  return session.has(id);
+}
+
+export function engineStats() {
+  return session.stats();
+}
+
+export function engineRenderPage(rawTitle: string, editable = false) {
+  try {
+    return renderPage(session, rawTitle, editable);
+  } catch (e) {
+    return {
+      html: "<p>Could not render this page.</p><p>" + e + "</p>",
+      title: rawTitle,
+      missing: false,
+      categories: [],
+      headings: [],
+    };
+  }
+}
+
+export function engineTitles() {
+  return pageTitles(session);
+}
+
+export function engineRecent(limit = 100) {
+  return recent(session, limit);
+}
+
+export function engineTrusted() {
+  return session.trusted.slice();
+}
+
+export function engineAccountName(key: string) {
+  return accountName(session, key);
+}
+
+export function engineCanEdit(key: string, rawTitle: string) {
+  return canEditPage(session, key, rawTitle);
+}
+
+export function engineAccountTaken(userKey: string, name: string) {
+  return session.names.has(userKey) || session.accounts.has(name);
+}
+
+export function engineRevisions(title: string) {
+  const page = session.pages.get(title) as Page | undefined;
+  return page ? page.revs.slice().reverse() : [];
+}
+
+export function enginePageExists(full: string) {
+  return session.pages.has(full);
+}
+
+export function engineLatestText(full: string) {
+  return latestText(session, full);
+}
+
+export function engineFollowRedirect(rawTitle: string) {
+  return followRedirect(session, rawTitle);
+}
+
+export function enginePreview(rawTitle: string, text: string) {
+  const title = parseTitle(rawTitle);
+  if (!title) return "<p>Invalid title.</p>";
+  return richText(
+    render(text, {
+      title,
+      exists: (full) => session.pages.has(full),
+      template: (full) => latestText(session, full),
+      file: () => null,
+      stats: session.stats(),
+    }).html,
+  );
 }

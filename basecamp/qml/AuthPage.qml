@@ -50,14 +50,15 @@ Item {
             text: "Remember on this device"
         }
         RowLayout {
-            Button {
+            WikiButton {
+                primary: true
                 text: creating ? "Create account" : "Log in"
                 onClicked: {
                     if (creating) createRequested(name.text, password.text, remember.checked)
                     else loginRequested(name.text, password.text, remember.checked)
                 }
             }
-            Button {
+            WikiButton {
                 text: creating ? "Have an account?" : "Create account"
                 onClicked: switchMode()
             }

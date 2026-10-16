@@ -53,3 +53,25 @@ test("createWiki replays edits", async () => {
   assert.equal(page.missing, false);
   assert.match(page.html, /<b>LAN<\/b>/);
 });
+
+test("bundled snapshot loads the imported Main Page", () => {
+  assert.match(W.ADMIN_KEY, /^[0-9a-f]{64}$/);
+  const jsonl = readFileSync(path.join(dir, "../data/snapshot.jsonl"), "utf8");
+  assert.ok(jsonl.length > 1000);
+  const wiki = W.createWiki(W.ADMIN_KEY);
+  const events = jsonl
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const envelope = JSON.parse(line);
+      const event = W.verify(envelope);
+      if (!event) throw new Error("snapshot envelope failed verify");
+      return event;
+    });
+  W.ingestEvents(wiki, events);
+  const page = W.renderPage(wiki, "Main Page");
+  assert.equal(page.missing, false);
+  assert.match(page.source || page.html, /Parallel Wiki/);
+  assert.ok(wiki.stats().pages > 100);
+  assert.ok(wiki.stats().edits >= 250);
+});

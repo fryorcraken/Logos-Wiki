@@ -1,4 +1,5 @@
 import { SITENAME } from "../config.ts";
+import { formatNumber } from "../format.ts";
 import { actionUrl, NAMESPACES, parseTitle, type Title } from "../title.ts";
 import { doBlockLevels, doHeadings, doTables, formatHeadings, type Heading } from "./blocks.ts";
 import { doQuotes, externalLinks, internalLinks, linkHtml, type LinkContext } from "./inline.ts";
@@ -63,10 +64,10 @@ function variables(ctx: RenderContext): Record<string, string> {
     SUBPAGENAME: slash > 0 ? title.text.slice(slash + 1) : title.text,
     ROOTPAGENAME: title.text.split("/")[0],
     SITENAME,
-    NUMBEROFARTICLES: stats.articles.toLocaleString("en"),
-    NUMBEROFPAGES: stats.pages.toLocaleString("en"),
-    NUMBEROFEDITS: stats.edits.toLocaleString("en"),
-    NUMBEROFUSERS: stats.users.toLocaleString("en"),
+    NUMBEROFARTICLES: formatNumber(stats.articles),
+    NUMBEROFPAGES: formatNumber(stats.pages),
+    NUMBEROFEDITS: formatNumber(stats.edits),
+    NUMBEROFUSERS: formatNumber(stats.users),
   };
 }
 

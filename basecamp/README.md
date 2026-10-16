@@ -12,10 +12,10 @@ The Vector 2022 HTML skin cannot run in Basecamp. This client keeps the wikitext
    `https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/basecamp/logos-repo.json`
 
 3. Install **Logos Wiki**. Basecamp will also need **Delivery Module** from Logos Official (the wiki lists it as a dependency). Storage is already bundled with Basecamp.
-4. Open **Logos Wiki** from the sidebar.
-5. In **Settings**, paste the web instance’s `WIKI_ADMIN_KEY` (and optional snapshot CID), then save.
+4. Open **Logos Wiki** from the sidebar. The imported wiki (Main Page and the rest of the LAN pages) loads on first open from a bundled snapshot. No Settings paste is required.
+5. Optional: **Settings** can override the shipped admin public key or a Storage snapshot CID if you are following a different log.
 
-If catalog download hangs on Storage, install the `.lgx` from disk: **Install Local Package** and choose `basecamp/dist/logos-wiki-0.1.0.lgx`. Optional deep link after install: `basecamp://intent/wiki.open`.
+If catalog download hangs on Storage, install the `.lgx` from disk: **Install Local Package** and choose `basecamp/dist/logos-wiki-0.1.1.lgx`. Optional deep link after install: `basecamp://intent/wiki.open`.
 
 ## Build
 
@@ -26,7 +26,7 @@ npm test
 npm run pack
 ```
 
-`npm run pack` writes `qml/wiki.js`, `dist/logos-wiki-0.1.0.lgx`, `index.json` and `logos-repo.json`.
+`npm run pack` writes `qml/wiki.js`, `qml/snapshot.js`, `dist/logos-wiki-0.1.1.lgx`, `index.json` and `logos-repo.json`. First open loads the bundled snapshot from `data/snapshot.jsonl`. Regenerate with `npm run snapshot-basecamp` from the repo root (needs the source wiki).
 
 ## What it talks to
 

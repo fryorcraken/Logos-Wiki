@@ -143,11 +143,11 @@ export function internalLinks(text: string, ctx: LinkContext) {
   return out;
 }
 
-const URL = String.raw`(?:(?:https?|ftp):)?\/\/[^\s\]<>"\[]+|mailto:[^\s\]<>"\[]+`;
+const URL = "(?:(?:https?|ftp):)?\\/\\/[^\\s\\]<>\"\\[]+|mailto:[^\\s\\]<>\"\\[]+";
 
 export function externalLinks(text: string) {
   let n = 0;
-  const bracketed = text.replace(new RegExp(String.raw`\[(${URL})(?:[ \t]+([^\]\n]*))?\]`, "g"), (_, url, label) =>
+  const bracketed = text.replace(new RegExp("\\[(" + URL + ")(?:[ \\t]+([^\\]\\n]*))?\\]", "g"), (_, url, label) =>
     label
       ? `<a rel="nofollow" class="external text" href="${url}">${label}</a>`
       : `<a rel="nofollow" class="external autonumber" href="${url}">[${++n}]</a>`,

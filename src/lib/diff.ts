@@ -43,7 +43,7 @@ function middle(x: string[], y: string[]): Op[] {
   return ops;
 }
 
-const tokens = (s: string) => s.match(/\s+|\w+|[^\s\w]/gu) ?? [];
+const tokens = (s: string) => s.match(/\s+|\w+|[^\s\w]/g) ?? [];
 
 function inline(before: string, after: string) {
   let del = "";

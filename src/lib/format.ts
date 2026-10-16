@@ -8,7 +8,12 @@ export const formatTime = (ts: number) => `${pad(at(ts).getUTCHours())}:${pad(at
 export const formatDateTime = (ts: number) => `${formatTime(ts)}, ${formatDate(ts)}`;
 export const isoSeconds = (ts: number) => at(ts).toISOString().replace(/\.\d{3}Z$/, "Z");
 
-export const formatNumber = (n: number) => n.toLocaleString("en");
+export const formatNumber = (n: number) => {
+  const sign = n < 0 ? "-" : "";
+  const [whole, frac] = Math.abs(n).toString().split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return sign + grouped + (frac ? "." + frac : "");
+};
 
 export function formatBytes(n: number) {
   if (n < 1024) return `${n} bytes`;

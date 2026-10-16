@@ -15,7 +15,8 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "basecamp": "npm --prefix basecamp test && npm --prefix basecamp run pack",
     "import": "node --experimental-strip-types scripts/import.ts",
-    "admin-key": "node --experimental-strip-types scripts/admin-key.ts"
+    "admin-key": "node --experimental-strip-types scripts/admin-key.ts",
+    "snapshot-basecamp": "node --experimental-strip-types scripts/snapshot-basecamp.ts"
   },
   "dependencies": {
     "@noble/curves": "^2.4.0",

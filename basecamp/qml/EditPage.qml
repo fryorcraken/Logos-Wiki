@@ -53,7 +53,7 @@ Item {
         }
 
         RowLayout {
-            Button {
+            WikiButton {
                 text: root.previewing ? "Edit" : "Preview"
                 onClicked: {
                     if (!root.previewing && root.previewFn) root.previewHtml = root.previewFn(editor.text)
@@ -61,8 +61,8 @@ Item {
                 }
             }
             Item { Layout.fillWidth: true }
-            Button { text: "Cancel"; onClicked: root.cancelled() }
-            Button { text: "Publish"; onClicked: root.published(editor.text, summary.text) }
+            WikiButton { text: "Cancel"; onClicked: root.cancelled() }
+            WikiButton { primary: true; text: "Publish"; onClicked: root.published(editor.text, summary.text) }
         }
     }
 }

@@ -1,5 +1,14 @@
 .pragma library
 if (typeof globalThis === "undefined") var globalThis = this;
+if (!String.raw) {
+  String.raw = function (callSite) {
+    var raw = callSite && callSite.raw;
+    if (!raw) return "";
+    var out = String(raw[0]);
+    for (var i = 1; i < raw.length; i++) out += arguments[i] + raw[i];
+    return out;
+  };
+}
 if (typeof TextEncoder === "undefined") {
   var TextEncoder = function () {};
   TextEncoder.prototype.encode = function (str) {
@@ -28,6 +37,59 @@ if (!Object.hasOwn) {
     return Object.prototype.hasOwnProperty.call(Object(obj), prop);
   };
 }
+if (!Array.prototype.flatMap) {
+  Array.prototype.flatMap = function (fn, ctx) {
+    var out = [];
+    for (var i = 0; i < this.length; i++) {
+      var v = fn.call(ctx, this[i], i, this);
+      if (Array.isArray(v)) for (var j = 0; j < v.length; j++) out.push(v[j]);
+      else out.push(v);
+    }
+    return out;
+  };
+}
+if (!String.prototype.trimStart) {
+  String.prototype.trimStart = function () {
+    return String(this).replace(/^\s+/, "");
+  };
+}
+if (!String.prototype.trimEnd) {
+  String.prototype.trimEnd = function () {
+    return String(this).replace(/\s+$/, "");
+  };
+}
+if (!String.prototype.replaceAll) {
+  String.prototype.replaceAll = function (search, replacement) {
+    if (search instanceof RegExp) return String(this).replace(search, replacement);
+    var out = String(this);
+    var find = String(search);
+    var idx;
+    var next = "";
+    while ((idx = out.indexOf(find)) >= 0) {
+      next += out.slice(0, idx) + replacement;
+      out = out.slice(idx + find.length);
+    }
+    return next + out;
+  };
+}
+if (!String.prototype.padStart) {
+  String.prototype.padStart = function (len, fill) {
+    var s = String(this);
+    fill = fill === undefined ? " " : String(fill);
+    if (!fill) return s;
+    while (s.length < len) s = fill + s;
+    return s.slice(s.length - len);
+  };
+}
+if (!String.prototype.padEnd) {
+  String.prototype.padEnd = function (len, fill) {
+    var s = String(this);
+    fill = fill === undefined ? " " : String(fill);
+    if (!fill) return s;
+    while (s.length < len) s += fill;
+    return s.slice(0, len);
+  };
+}
 if (!Array.prototype.at) {
   Array.prototype.at = function (n) {
     n = Math.trunc(n) || 0;
@@ -48,6 +110,117 @@ if (!String.prototype.matchAll) {
 
 "use strict";
 var WikiEngine = (() => {
+var WikiDict = function (pairs) {
+  var o = {
+    _k: [],
+    _v: [],
+    get: function (k) {
+      var i = o._k.indexOf(k);
+      return i < 0 ? undefined : o._v[i];
+    },
+    set: function (k, v) {
+      var i = o._k.indexOf(k);
+      if (i < 0) {
+        o._k.push(k);
+        o._v.push(v);
+      } else o._v[i] = v;
+      return o;
+    },
+    has: function (k) {
+      return o._k.indexOf(k) >= 0;
+    },
+    delete: function (k) {
+      var i = o._k.indexOf(k);
+      if (i < 0) return false;
+      o._k.splice(i, 1);
+      o._v.splice(i, 1);
+      return true;
+    },
+    forEach: function (fn, ctx) {
+      for (var i = 0; i < o._k.length; i++) fn.call(ctx, o._v[i], o._k[i], o);
+    },
+    values: function () {
+      return o._v.slice();
+    },
+    keys: function () {
+      var arr = o._k.slice();
+      var n = 0;
+      arr.next = function () {
+        if (n >= arr.length) return { done: true, value: undefined };
+        return { done: false, value: arr[n++] };
+      };
+      return arr;
+    },
+  };
+  Object.defineProperty(o, "size", {
+    get: function () {
+      return o._k.length;
+    },
+  });
+  if (pairs && typeof pairs.length === "number") {
+    for (var p = 0; p < pairs.length; p++) {
+      if (pairs[p] && pairs[p].length) o.set(pairs[p][0], pairs[p][1]);
+    }
+  }
+  return o;
+};
+var WikiBag = function (list) {
+  var o = {
+    _a: [],
+    add: function (v) {
+      if (o._a.indexOf(v) < 0) o._a.push(v);
+      return o;
+    },
+    has: function (v) {
+      return o._a.indexOf(v) >= 0;
+    },
+    delete: function (v) {
+      var i = o._a.indexOf(v);
+      if (i < 0) return false;
+      o._a.splice(i, 1);
+      return true;
+    },
+    forEach: function (fn, ctx) {
+      for (var i = 0; i < o._a.length; i++) fn.call(ctx, o._a[i], o._a[i], o);
+    },
+    values: function () {
+      return o._a.slice();
+    },
+    keys: function () {
+      return o._a.slice();
+    },
+    slice: function () {
+      return o._a.slice();
+    },
+  };
+  Object.defineProperty(o, "size", {
+    get: function () {
+      return o._a.length;
+    },
+  });
+  Object.defineProperty(o, "length", {
+    get: function () {
+      return o._a.length;
+    },
+  });
+  if (typeof Symbol !== "undefined" && Symbol.iterator) {
+    o[Symbol.iterator] = function () {
+      var a = o._a.slice();
+      var i = 0;
+      return {
+        next: function () {
+          if (i >= a.length) return { done: true, value: undefined };
+          return { done: false, value: a[i++] };
+        },
+      };
+    };
+  }
+  if (list && typeof list.length === "number") {
+    for (var i = 0; i < list.length; i++) o.add(list[i]);
+  }
+  return o;
+};
+
   var __create = Object.create;
   var __defProp = Object.defineProperty;
   var __defProps = Object.defineProperties;
@@ -2337,10 +2510,12 @@ var WikiEngine = (() => {
   // basecamp/js/entry.ts
   var entry_exports = {};
   __export(entry_exports, {
+    ADMIN_KEY: () => ADMIN_KEY,
     MAIN_PAGE: () => MAIN_PAGE,
     MAX_TEXT: () => MAX_TEXT,
     PRESET: () => PRESET,
     SITENAME: () => SITENAME,
+    SNAPSHOT_CID: () => SNAPSHOT_CID,
     TOPIC: () => TOPIC,
     Wiki: () => Wiki,
     accountName: () => accountName,
@@ -2352,6 +2527,20 @@ var WikiEngine = (() => {
     decodeMessage: () => decodeMessage,
     deriveSeed: () => deriveSeed,
     diffRows: () => diffRows,
+    engineAccountName: () => engineAccountName,
+    engineAccountTaken: () => engineAccountTaken,
+    engineCanEdit: () => engineCanEdit,
+    engineFollowRedirect: () => engineFollowRedirect,
+    engineHas: () => engineHas,
+    engineLatestText: () => engineLatestText,
+    enginePageExists: () => enginePageExists,
+    enginePreview: () => enginePreview,
+    engineRecent: () => engineRecent,
+    engineRenderPage: () => engineRenderPage,
+    engineRevisions: () => engineRevisions,
+    engineStats: () => engineStats,
+    engineTitles: () => engineTitles,
+    engineTrusted: () => engineTrusted,
     followRedirect: () => followRedirect,
     formatDate: () => formatDate,
     formatDateTime: () => formatDateTime,
@@ -2359,6 +2548,9 @@ var WikiEngine = (() => {
     formatTime: () => formatTime,
     hexToBytes: () => hexToBytes2,
     ingest: () => ingest,
+    ingestEnvelope: () => ingestEnvelope,
+    ingestEvents: () => ingestEvents,
+    ingestSnapshotEvents: () => ingestSnapshotEvents,
     joinBase64Chunks: () => joinBase64Chunks,
     latestText: () => latestText,
     pageTitles: () => pageTitles,
@@ -2370,6 +2562,7 @@ var WikiEngine = (() => {
     render: () => render,
     renderPage: () => renderPage,
     replaceSection: () => replaceSection,
+    resetEngine: () => resetEngine,
     richText: () => richText,
     sectionText: () => sectionText,
     sign: () => sign,
@@ -3151,10 +3344,11 @@ var WikiEngine = (() => {
   // basecamp/js/config.ts
   var SITENAME = "Local Area Network";
   var MAIN_PAGE = "Main Page";
-  var ADMIN_KEY = "";
+  var ADMIN_KEY = "ee7a5fc7ab70a820df10a4d3ba12f2e3f830c3f486b0d645eded9e8ff729ce08";
   var TOPIC = "/logos-wiki/1/lan/json";
   var PRESET = "logos.dev";
   var MAX_TEXT = 12e4;
+  var SNAPSHOT_CID = "";
 
   // src/lib/title.ts
   var NAMESPACES = {
@@ -3178,7 +3372,7 @@ var WikiEngine = (() => {
     15: "Category talk"
   };
   var ALIASES = { image: 6, "image talk": 7, project: 4, "project talk": 5 };
-  var BY_NAME = new Map(
+  var BY_NAME = new WikiDict(
     [...Object.entries(NAMESPACES).map(([n, name]) => [name.toLowerCase(), Number(n)]), ...Object.entries(ALIASES)]
   );
   var ucfirst = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -3226,7 +3420,7 @@ var WikiEngine = (() => {
   var anchor = (text) => text.trim().replace(/\s+/g, "_");
 
   // src/lib/state.ts
-  var IMAGE_TYPES = /* @__PURE__ */ new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+  var IMAGE_TYPES = new WikiBag(["image/png", "image/jpeg", "image/gif", "image/webp"]);
   var CID = /^z[1-9A-HJ-NP-Za-km-z]{20,100}$/;
   var MAX_FILE = 50 * 1024 * 1024;
   var MAX_PENDING = 1e3;
@@ -3247,15 +3441,15 @@ var WikiEngine = (() => {
   var Wiki = class {
     constructor(admin = ADMIN_KEY) {
       __publicField(this, "log", []);
-      __publicField(this, "pages", /* @__PURE__ */ new Map());
+      __publicField(this, "pages", new WikiDict());
       __publicField(this, "revisions", []);
-      __publicField(this, "accounts", /* @__PURE__ */ new Map());
-      __publicField(this, "names", /* @__PURE__ */ new Map());
+      __publicField(this, "accounts", new WikiDict());
+      __publicField(this, "names", new WikiDict());
       __publicField(this, "trusted", []);
-      __publicField(this, "files", /* @__PURE__ */ new Map());
-      __publicField(this, "reserved", /* @__PURE__ */ new Set());
-      __publicField(this, "ids", /* @__PURE__ */ new Set());
-      __publicField(this, "pending", /* @__PURE__ */ new Map());
+      __publicField(this, "files", new WikiDict());
+      __publicField(this, "reserved", new WikiBag());
+      __publicField(this, "ids", new WikiBag());
+      __publicField(this, "pending", new WikiDict());
       __publicField(this, "admin");
       this.admin = admin;
     }
@@ -3280,16 +3474,16 @@ var WikiEngine = (() => {
     rebuild(events) {
       Object.assign(this, {
         log: [],
-        pages: /* @__PURE__ */ new Map(),
+        pages: new WikiDict(),
         revisions: [],
-        accounts: /* @__PURE__ */ new Map(),
-        names: /* @__PURE__ */ new Map(),
+        accounts: new WikiDict(),
+        names: new WikiDict(),
         trusted: [],
-        files: /* @__PURE__ */ new Map(),
-        ids: /* @__PURE__ */ new Set(),
-        pending: /* @__PURE__ */ new Map()
+        files: new WikiDict(),
+        ids: new WikiBag(),
+        pending: new WikiDict()
       });
-      this.reserved = new Set(events.flatMap((e) => "as" in e && e.as && e.by === this.admin ? [e.as] : []));
+      this.reserved = new WikiBag(events.flatMap((e) => "as" in e && e.as && e.by === this.admin ? [e.as] : []));
       for (const event of [...events].sort(order)) if (!this.ids.has(event.id)) this.attempt(event);
     }
     canEdit(key, title) {
@@ -3313,11 +3507,12 @@ var WikiEngine = (() => {
     }
     stats() {
       let articles = 0;
-      for (const page of this.pages.values()) {
+      this.pages.forEach((page) => {
         const text = page.revs.at(-1).text;
         if (page.title.ns === 0 && !/^\s*#redirect/i.test(text) && text.includes("[[")) articles++;
-      }
-      const users = /* @__PURE__ */ new Set([...this.accounts.keys(), ...this.reserved]);
+      });
+      const users = new WikiBag(this.accounts.keys());
+      this.reserved.forEach((name) => users.add(name));
       users.delete("MediaWiki default");
       return { articles, pages: this.pages.size, edits: this.revisions.length, users: users.size };
     }
@@ -3401,7 +3596,7 @@ var WikiEngine = (() => {
     }
     applyTrust(event) {
       if (event.by !== this.admin || !Array.isArray(event.editors) || event.editors.length > 1e3) return false;
-      this.trusted = [...new Set(event.editors.map(validUsername).filter((n) => !!n))];
+      this.trusted = [...new WikiBag(event.editors.map(validUsername).filter((n) => !!n))];
       return true;
     }
     applyFile(event) {
@@ -3432,7 +3627,7 @@ var WikiEngine = (() => {
   };
 
   // src/lib/events.ts
-  var KINDS = /* @__PURE__ */ new Set(["account", "edit", "trust", "file"]);
+  var KINDS = new WikiBag(["account", "edit", "trust", "file"]);
   var sha256Hex = (bytes) => bytesToHex(sha256(bytes));
   var publicKey = (seed) => bytesToHex(ed25519.getPublicKey(seed));
   function sign(seed, body, ts = Date.now()) {
@@ -3460,12 +3655,26 @@ var WikiEngine = (() => {
     return __spreadProps(__spreadValues({}, event), { id: sha256Hex(bytes) });
   }
 
+  // src/lib/format.ts
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var at = (ts) => new Date(ts);
+  var pad = (n) => String(n).padStart(2, "0");
+  var formatDate = (ts) => `${at(ts).getUTCDate()} ${MONTHS[at(ts).getUTCMonth()]} ${at(ts).getUTCFullYear()}`;
+  var formatTime = (ts) => `${pad(at(ts).getUTCHours())}:${pad(at(ts).getUTCMinutes())}`;
+  var formatDateTime = (ts) => `${formatTime(ts)}, ${formatDate(ts)}`;
+  var formatNumber = (n) => {
+    const sign2 = n < 0 ? "-" : "";
+    const [whole, frac] = Math.abs(n).toString().split(".");
+    const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return sign2 + grouped + (frac ? "." + frac : "");
+  };
+
   // src/lib/wikitext/sanitize.ts
-  var TAGS = new Set(
+  var TAGS = new WikiBag(
     "b i u s del ins strike big small sub sup tt code kbd samp var cite q dfn abbr span div p br hr center font blockquote pre h1 h2 h3 h4 h5 h6 table caption thead tbody tfoot tr td th ul ol li dl dt dd em strong mark bdi bdo ruby rt rp wbr data time".split(" ")
   );
-  var VOID = /* @__PURE__ */ new Set(["br", "hr", "wbr"]);
-  var ATTRS = new Set(
+  var VOID = new WikiBag(["br", "hr", "wbr"]);
+  var ATTRS = new WikiBag(
     "class id style title lang dir align valign width height colspan rowspan cellpadding cellspacing border bgcolor color face size scope start type value reversed datetime".split(" ")
   );
   var UNSAFE_CSS = /expression|url\s*\(|image-set|attr\s*\(|-moz-binding|behavior\s*:|@import|javascript:|[<>\\]|\/\*/i;
@@ -3692,7 +3901,7 @@ ${openItem(char)}`;
     return text.replace(/^(={1,6})(.+)\1[ \t]*$/gm, (_, eq, inner) => `<h${eq.length}>${inner.trim()}</h${eq.length}>`);
   }
   function formatHeadings(html, headings2, editLink) {
-    const used = /* @__PURE__ */ new Map();
+    const used = new WikiDict();
     const levels = [];
     const counters = [];
     return html.replace(/<h([1-6])(\s[^>]*)?>([\s\S]*?)<\/h\1\s*>/gi, (_, n, attrs = "", inner) => {
@@ -3847,11 +4056,11 @@ ${openItem(char)}`;
     }
     return out;
   }
-  var URL = String.raw`(?:(?:https?|ftp):)?\/\/[^\s\]<>"\[]+|mailto:[^\s\]<>"\[]+`;
+  var URL = '(?:(?:https?|ftp):)?\\/\\/[^\\s\\]<>"\\[]+|mailto:[^\\s\\]<>"\\[]+';
   function externalLinks(text) {
     let n = 0;
     const bracketed = text.replace(
-      new RegExp(String.raw`\[(${URL})(?:[ \t]+([^\]\n]*))?\]`, "g"),
+      new RegExp("\\[(" + URL + ")(?:[ \\t]+([^\\]\\n]*))?\\]", "g"),
       (_, url, label) => label ? `<a rel="nofollow" class="external text" href="${url}">${label}</a>` : `<a rel="nofollow" class="external autonumber" href="${url}">[${++n}]</a>`
     );
     return bracketed.split(/(<a\b[^>]*>[\s\S]*?<\/a>|<[^>]*>)/).map(
@@ -3928,9 +4137,9 @@ ${openItem(char)}`;
     const tpl = (parts, frame) => {
       const literal = () => `{{${parts.map((p) => run(p, frame)).join("|")}}}`;
       const name = run(parts[0], frame).trim().replace(/^(safe)?subst:/i, "");
-      const sort = new RegExp("^DEFAULTSORT(KEY)?:(.*)$", "is").exec(name);
+      const sort = /^DEFAULTSORT(?:KEY)?:([\s\S]*)$/i.exec(name);
       if (sort) {
-        meta.sortKey = sort[2].trim();
+        meta.sortKey = sort[1].trim();
         return "";
       }
       if (parts.length === 1) {
@@ -3944,7 +4153,7 @@ ${openItem(char)}`;
         return `<span class="error">Template loop detected: [[:${title.full}]]</span>`;
       const src = source.template(title.full);
       if (src === null) return `[[:${title.full}]]`;
-      const args = /* @__PURE__ */ new Map();
+      const args = new WikiDict();
       let index = 1;
       for (const part of parts.slice(1)) {
         const head = part[0];
@@ -3991,10 +4200,10 @@ ${escapeHtml(source)}
       SUBPAGENAME: slash > 0 ? title.text.slice(slash + 1) : title.text,
       ROOTPAGENAME: title.text.split("/")[0],
       SITENAME,
-      NUMBEROFARTICLES: stats.articles.toLocaleString("en"),
-      NUMBEROFPAGES: stats.pages.toLocaleString("en"),
-      NUMBEROFEDITS: stats.edits.toLocaleString("en"),
-      NUMBEROFUSERS: stats.users.toLocaleString("en")
+      NUMBEROFARTICLES: formatNumber(stats.articles),
+      NUMBEROFPAGES: formatNumber(stats.pages),
+      NUMBEROFEDITS: formatNumber(stats.edits),
+      NUMBEROFUSERS: formatNumber(stats.users)
     };
   }
   function editSection(ctx) {
@@ -4006,7 +4215,7 @@ ${escapeHtml(source)}
   }
   var wrap = (html) => `<div class="mw-content-ltr mw-parser-output" lang="en" dir="ltr">${html}</div>`;
   function render(source, ctx) {
-    const link = { title: ctx.title, exists: ctx.exists, file: ctx.file, categories: [], links: /* @__PURE__ */ new Set() };
+    const link = { title: ctx.title, exists: ctx.exists, file: ctx.file, categories: [], links: new WikiBag() };
     const result = { categories: link.categories, headings: [], links: link.links, redirect: null, toc: false };
     if (isCodePage(ctx.title)) return __spreadProps(__spreadValues({}, result), { html: wrap(codeHtml(source, ctx.title)) });
     const redirectMatch = /^\s*#REDIRECT\s*:?\s*\[\[([^\]|]+)/i.exec(source);
@@ -4037,15 +4246,6 @@ ${escapeHtml(source)}
     text = balanceTags(unstrip(text, store));
     return __spreadProps(__spreadValues({}, result), { html: wrap(text), headings: headings2, sortKey: meta.sortKey, toc });
   }
-
-  // src/lib/format.ts
-  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  var at = (ts) => new Date(ts);
-  var pad = (n) => String(n).padStart(2, "0");
-  var formatDate = (ts) => `${at(ts).getUTCDate()} ${MONTHS[at(ts).getUTCMonth()]} ${at(ts).getUTCFullYear()}`;
-  var formatTime = (ts) => `${pad(at(ts).getUTCHours())}:${pad(at(ts).getUTCMinutes())}`;
-  var formatDateTime = (ts) => `${formatTime(ts)}, ${formatDate(ts)}`;
-  var formatNumber = (n) => n.toLocaleString("en");
 
   // src/lib/diff.ts
   var MAX_CELLS = 4e6;
@@ -4089,7 +4289,7 @@ ${escapeHtml(source)}
   }
   var tokens = (s) => {
     var _a;
-    return (_a = s.match(/\s+|\w+|[^\s\w]/gu)) != null ? _a : [];
+    return (_a = s.match(/\s+|\w+|[^\s\w]/g)) != null ? _a : [];
   };
   function inline(before, after) {
     let del = "";
@@ -4285,6 +4485,17 @@ ${body.trim()}`;
     wiki.add(event);
     return event;
   }
+  function ingestEvents(wiki, events) {
+    if (!events) return 0;
+    let n = 0;
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+      if (!event || !event.id || wiki.has(event.id)) continue;
+      wiki.add(event);
+      n++;
+    }
+    return n;
+  }
   function latestText(wiki, full) {
     const page = wiki.pages.get(full);
     if (!page || !page.revs.length) return null;
@@ -4352,10 +4563,102 @@ ${body.trim()}`;
     if (!target) return { title: page.title, hops: 0 };
     return { title: target.full, hops: 1, from: page.title };
   }
+  var session = new Wiki("");
+  function resetEngine(admin) {
+    session = new Wiki((admin || "").toLowerCase());
+  }
+  function ingestEnvelope(envelope) {
+    return ingest(session, envelope);
+  }
+  function ingestSnapshotEvents(events) {
+    return ingestEvents(session, events);
+  }
+  function engineHas(id) {
+    return session.has(id);
+  }
+  function engineStats() {
+    return session.stats();
+  }
+  function engineRenderPage(rawTitle, editable = false) {
+    try {
+      return renderPage(session, rawTitle, editable);
+    } catch (e) {
+      return {
+        html: "<p>Could not render this page.</p><p>" + e + "</p>",
+        title: rawTitle,
+        missing: false,
+        categories: [],
+        headings: []
+      };
+    }
+  }
+  function engineTitles() {
+    return pageTitles(session);
+  }
+  function engineRecent(limit = 100) {
+    return recent(session, limit);
+  }
+  function engineTrusted() {
+    return session.trusted.slice();
+  }
+  function engineAccountName(key) {
+    return accountName(session, key);
+  }
+  function engineCanEdit(key, rawTitle) {
+    return canEditPage(session, key, rawTitle);
+  }
+  function engineAccountTaken(userKey, name) {
+    return session.names.has(userKey) || session.accounts.has(name);
+  }
+  function engineRevisions(title) {
+    const page = session.pages.get(title);
+    return page ? page.revs.slice().reverse() : [];
+  }
+  function enginePageExists(full) {
+    return session.pages.has(full);
+  }
+  function engineLatestText(full) {
+    return latestText(session, full);
+  }
+  function engineFollowRedirect(rawTitle) {
+    return followRedirect(session, rawTitle);
+  }
+  function enginePreview(rawTitle, text) {
+    const title = parseTitle(rawTitle);
+    if (!title) return "<p>Invalid title.</p>";
+    return richText(
+      render(text, {
+        title,
+        exists: (full) => session.pages.has(full),
+        template: (full) => latestText(session, full),
+        file: () => null,
+        stats: session.stats()
+      }).html
+    );
+  }
   return __toCommonJS(entry_exports);
 })();
+var ADMIN_KEY = WikiEngine.ADMIN_KEY;
 var createWiki = WikiEngine.createWiki;
 var ingest = WikiEngine.ingest;
+var ingestEvents = WikiEngine.ingestEvents;
+var resetEngine = WikiEngine.resetEngine;
+var ingestEnvelope = WikiEngine.ingestEnvelope;
+var ingestSnapshotEvents = WikiEngine.ingestSnapshotEvents;
+var engineHas = WikiEngine.engineHas;
+var engineStats = WikiEngine.engineStats;
+var engineRenderPage = WikiEngine.engineRenderPage;
+var engineTitles = WikiEngine.engineTitles;
+var engineRecent = WikiEngine.engineRecent;
+var engineTrusted = WikiEngine.engineTrusted;
+var engineAccountName = WikiEngine.engineAccountName;
+var engineCanEdit = WikiEngine.engineCanEdit;
+var engineAccountTaken = WikiEngine.engineAccountTaken;
+var engineRevisions = WikiEngine.engineRevisions;
+var enginePageExists = WikiEngine.enginePageExists;
+var engineLatestText = WikiEngine.engineLatestText;
+var engineFollowRedirect = WikiEngine.engineFollowRedirect;
+var enginePreview = WikiEngine.enginePreview;
 var latestText = WikiEngine.latestText;
 var richText = WikiEngine.richText;
 var renderPage = WikiEngine.renderPage;
@@ -4388,6 +4691,7 @@ var replaceSection = WikiEngine.replaceSection;
 var sectionText = WikiEngine.sectionText;
 var sign = WikiEngine.sign;
 var SITENAME = WikiEngine.SITENAME;
+var SNAPSHOT_CID = WikiEngine.SNAPSHOT_CID;
 var TOPIC = WikiEngine.TOPIC;
 var validUsername = WikiEngine.validUsername;
 var verify = WikiEngine.verify;
