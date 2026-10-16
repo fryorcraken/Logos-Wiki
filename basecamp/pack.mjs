@@ -234,6 +234,7 @@ const index = {
   schemaVersion: 2,
   repositoryName: "logos-wiki",
   generatedAt: new Date().toISOString(),
+  latest: version,
   packages: [
     {
       name: meta.name,
