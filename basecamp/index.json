@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 2,
+  "repositoryName": "logos-wiki",
+  "generatedAt": "2026-10-16T09:59:40.616Z",
+  "packages": [
+    {
+      "name": "logos-wiki",
+      "versions": [
+        {
+          "releasedAt": "2026-10-16T09:59:40.616Z",
+          "publisherRef": "basecamp-v0.1.0",
+          "url": "https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/basecamp/dist/logos-wiki-0.1.0.lgx",
+          "urls": [
+            "https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/basecamp/dist/logos-wiki-0.1.0.lgx",
+            "https://github.com/uNexpectedR/Logos-Wiki/releases/download/basecamp-v0.1.0/logos-wiki-0.1.0.lgx"
+          ],
+          "size": 182006,
+          "sha256": "8e59441984fb47ede1a087e92c816a1ebef28509723c37f70f82fdaaa8f1442c",
+          "rootHash": "3f326d213464daf05e0e5e9d9bd8168265f8c632c8714be310eeffd413876222",
+          "manifest": {
+            "author": "Logos Wiki",
+            "category": "apps",
+            "dependencies": [
+              "storage_module",
+              "delivery_module"
+            ],
+            "description": "Read and edit the Logos Wiki from Basecamp. Same signed event log as the web wiki, via Storage and Delivery.",
+            "display_name": "Logos Wiki",
+            "hashes": {
+              "assets": "fea5a985bc1b32bddd93d78236ba8714c13680fe159cee21cc465426882cdf4b",
+              "root": "3f326d213464daf05e0e5e9d9bd8168265f8c632c8714be310eeffd413876222",
+              "variants": "eecaf2c3bf3a3f6a42f4877b5fd59b14e639d0242251322396bf22a92efd218b",
+              "variants/darwin-arm64": "26e8aaed54dfc9c19fc056ce6fc5f9f267ef77358b17a85d9d61e121a08f03cb",
+              "variants/linux-amd64": "26e8aaed54dfc9c19fc056ce6fc5f9f267ef77358b17a85d9d61e121a08f03cb",
+              "variants/linux-arm64": "26e8aaed54dfc9c19fc056ce6fc5f9f267ef77358b17a85d9d61e121a08f03cb",
+              "variants/windows-x86_64": "26e8aaed54dfc9c19fc056ce6fc5f9f267ef77358b17a85d9d61e121a08f03cb"
+            },
+            "icon": "assets/icon.png",
+            "main": {
+              "darwin-arm64": "qml/Main.qml",
+              "linux-amd64": "qml/Main.qml",
+              "linux-arm64": "qml/Main.qml",
+              "windows-x86_64": "qml/Main.qml"
+            },
+            "manifestVersion": "0.6.0",
+            "name": "logos-wiki",
+            "provides": [
+              {
+                "intent": "wiki.open",
+                "web": true
+              }
+            ],
+            "type": "ui_qml",
+            "version": "0.1.0",
+            "view": "qml/Main.qml"
+          }
+        }
+      ]
+    }
+  ]
+}

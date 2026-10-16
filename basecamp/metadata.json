@@ -1,0 +1,12 @@
+{
+  "name": "logos-wiki",
+  "display_name": "Logos Wiki",
+  "version": "0.1.0",
+  "description": "Read and edit the Logos Wiki from Basecamp. Same signed event log as the web wiki, via Storage and Delivery.",
+  "author": "Logos Wiki",
+  "type": "ui_qml",
+  "view": "qml/Main.qml",
+  "category": "apps",
+  "dependencies": ["storage_module", "delivery_module"],
+  "provides": [{ "intent": "wiki.open", "web": true }]
+}
