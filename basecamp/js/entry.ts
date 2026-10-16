@@ -10,6 +10,7 @@ import { diffRows } from "../../src/lib/diff.ts";
 import { appendSection, replaceSection, sectionText } from "../../src/lib/sections.ts";
 import { bytesToHex, hexToBytes } from "./shims/utils.ts";
 import { decodeMessage, joinBase64Chunks } from "./bytes.ts";
+import { qmlHtml } from "./qml-html.ts";
 
 export function deriveSeed(name: string, password: string) {
   const salt = utf8ToBytes("logos-wiki/v1/" + name.normalize("NFC"));
@@ -76,7 +77,7 @@ export function latestText(wiki: Wiki, full: string) {
 }
 
 export function richText(html: string) {
-  return html
+  html = html
     .replace(/<figure\b[^>]*>/gi, "<div>")
     .replace(/<\/figure>/gi, "</div>")
     .replace(/<figcaption\b[^>]*>/gi, "<p><i>")
@@ -93,6 +94,7 @@ export function richText(html: string) {
       const name = decodeURIComponent(String(title).replace(/\+/g, " ")).replace(/_/g, " ");
       return `href="wiki://${encodeURIComponent(name)}"`;
     });
+  return qmlHtml(html);
 }
 
 export function renderPage(wiki: Wiki, rawTitle: string, editable = false) {

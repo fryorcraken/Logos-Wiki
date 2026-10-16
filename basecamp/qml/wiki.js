@@ -2324,12 +2324,12 @@ var WikiBag = function (list) {
           crypto_secretbox(c, m, m.length, nonce, key);
           return c.subarray(crypto_secretbox_BOXZEROBYTES);
         };
-        nacl2.secretbox.open = function(box, nonce, key) {
-          checkArrayTypes(box, nonce, key);
+        nacl2.secretbox.open = function(box2, nonce, key) {
+          checkArrayTypes(box2, nonce, key);
           checkLengths(key, nonce);
-          var c = new Uint8Array(crypto_secretbox_BOXZEROBYTES + box.length);
+          var c = new Uint8Array(crypto_secretbox_BOXZEROBYTES + box2.length);
           var m = new Uint8Array(c.length);
-          for (var i = 0; i < box.length; i++) c[i + crypto_secretbox_BOXZEROBYTES] = box[i];
+          for (var i = 0; i < box2.length; i++) c[i + crypto_secretbox_BOXZEROBYTES] = box2[i];
           if (c.length < 32) return null;
           if (crypto_secretbox_open(m, c, c.length, nonce, key) !== 0) return null;
           return m.subarray(crypto_secretbox_ZEROBYTES);
@@ -4463,6 +4463,139 @@ ${body.trim()}`;
     return typeof raw === "object" ? JSON.stringify(raw) : String(raw);
   }
 
+  // basecamp/js/qml-html.ts
+  var VOID2 = { br: true, hr: true, img: true, wbr: true };
+  function parseStyle(raw) {
+    const out = {};
+    const parts = raw.split(";");
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const c = part.indexOf(":");
+      if (c < 0) continue;
+      const key = part.slice(0, c).trim().toLowerCase();
+      if (key) out[key] = part.slice(c + 1).trim();
+    }
+    return out;
+  }
+  function styleFrom(attrs) {
+    const m = /\bstyle="([^"]*)"/.exec(attrs);
+    return m ? parseStyle(m[1]) : {};
+  }
+  function colorOf(style) {
+    const v = style["background-color"] || style.background || "";
+    const m = /#([0-9a-f]{3,8})\b/i.exec(v);
+    if (!m) return "";
+    let h = m[1].toLowerCase();
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    if (h.length > 6) h = h.slice(0, 6);
+    return "#" + h;
+  }
+  function hasBorder(style) {
+    for (const key in style) {
+      if (key !== "border" && key.indexOf("border-") !== 0) continue;
+      const v = style[key].toLowerCase();
+      if (v && v !== "none" && v !== "0" && v !== "0px") return true;
+    }
+    return false;
+  }
+  function isFlex(style) {
+    return (style.display || "").indexOf("flex") >= 0;
+  }
+  function parseFragment(html) {
+    const root = { tag: "#root", attrs: "", children: [] };
+    const stack = [root];
+    const re = /<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g;
+    let last = 0;
+    let match;
+    while (match = re.exec(html)) {
+      if (match.index > last) stack[stack.length - 1].children.push(html.slice(last, match.index));
+      last = match.index + match[0].length;
+      const tag = match[1].toLowerCase();
+      if (match[0][1] === "/") {
+        for (let i = stack.length - 1; i > 0; i--) {
+          if (stack[i].tag === tag) {
+            stack.length = i;
+            break;
+          }
+        }
+        continue;
+      }
+      const attrs = match[0].replace(/^<[a-zA-Z][a-zA-Z0-9]*/, "").replace(/\/?>$/, "");
+      const node = { tag, attrs, children: [] };
+      stack[stack.length - 1].children.push(node);
+      if (!VOID2[tag] && !/\/\s*>$/.test(match[0])) stack.push(node);
+    }
+    if (last < html.length) root.children.push(html.slice(last));
+    return root.children;
+  }
+  function elements(node) {
+    const out = [];
+    for (let i = 0; i < node.children.length; i++) {
+      const child = node.children[i];
+      if (typeof child !== "string") out.push(child);
+    }
+    return out;
+  }
+  function box(header, headerBg, body) {
+    const head = header ? `<tr><td bgcolor="${headerBg || "#eaecf0"}"><p><b>${header}</b></p></td></tr>` : "";
+    return `<table width="100%" cellspacing="0" cellpadding="8" border="1" bordercolor="#a2a9b1" bgcolor="#ffffff">${head}<tr><td>${body}</td></tr></table><p></p>`;
+  }
+  function transform(nodes) {
+    let html = "";
+    for (let i = 0; i < nodes.length; i++) html += transformOne(nodes[i]);
+    return html;
+  }
+  function transformOne(node) {
+    if (typeof node === "string") return node;
+    const style = styleFrom(node.attrs);
+    if (node.tag === "div" && isFlex(style)) {
+      const cols = elements(node);
+      let cells = "";
+      for (let i = 0; i < cols.length; i++) cells += `<td valign="top">${transformOne(cols[i])}</td>`;
+      const border = hasBorder(style) ? ` border="1" bordercolor="#c8ccd1"` : "";
+      const bg = colorOf(style);
+      return `<table width="100%" cellspacing="8" cellpadding="8"${border}${bg ? ` bgcolor="${bg}"` : ""}><tr>${cells}</tr></table><p></p>`;
+    }
+    if (node.tag === "div" && hasBorder(style)) {
+      const kids = elements(node);
+      let header = "";
+      let headerBg = "#eaecf0";
+      let body = node.children;
+      if (kids[0] && kids[0].tag === "div" && colorOf(styleFrom(kids[0].attrs))) {
+        headerBg = colorOf(styleFrom(kids[0].attrs)) || headerBg;
+        header = transform(kids[0].children);
+        let idx = 0;
+        while (idx < node.children.length && node.children[idx] !== kids[0]) idx++;
+        body = node.children.slice(idx + 1);
+      }
+      return box(header, headerBg, transform(body));
+    }
+    if (node.tag === "div") {
+      let inner2 = transform(node.children);
+      const size = style["font-size"] || "";
+      const align = (style["text-align"] || "").toLowerCase();
+      const weight = (style["font-weight"] || "").toLowerCase();
+      const fg = /#([0-9a-f]{3,6})/i.exec(style.color || "");
+      const bg = colorOf(style);
+      if (weight === "bold" || Number(weight) >= 600) inner2 = `<b>${inner2}</b>`;
+      if (size.indexOf("2em") >= 0) inner2 = `<h2>${inner2}</h2>`;
+      else if (size.indexOf("1.1") >= 0 || size.indexOf("1.15") >= 0) inner2 = `<b>${inner2}</b>`;
+      if (fg) inner2 = `<font color="#${fg[1]}">${inner2}</font>`;
+      const alignAttr = align === "center" || align === "right" ? ` align="${align}"` : "";
+      const block = /<(p|ul|ol|table|h[1-6]|div)\b/i.test(inner2);
+      const wrapped = block ? inner2 : `<p>${inner2}</p>`;
+      if (bg) return `<table width="100%" cellspacing="0" cellpadding="6" bgcolor="${bg}"><tr><td${alignAttr}>${wrapped}</td></tr></table>`;
+      if (alignAttr) return `<div${alignAttr}>${wrapped}</div>`;
+      return wrapped;
+    }
+    const inner = transform(node.children);
+    if (VOID2[node.tag]) return `<${node.tag}${node.attrs}>`;
+    return `<${node.tag}${node.attrs}>${inner}</${node.tag}>`;
+  }
+  function qmlHtml(html) {
+    return transform(parseFragment(html));
+  }
+
   // basecamp/js/entry.ts
   function deriveSeed(name, password) {
     const salt = utf8ToBytes("logos-wiki/v1/" + name.normalize("NFC"));
@@ -4494,7 +4627,7 @@ ${body.trim()}`;
     return page.revs[page.revs.length - 1].text;
   }
   function richText(html) {
-    return html.replace(/<figure\b[^>]*>/gi, "<div>").replace(/<\/figure>/gi, "</div>").replace(/<figcaption\b[^>]*>/gi, "<p><i>").replace(/<\/figcaption>/gi, "</i></p>").replace(/<img\b[^>]*>/gi, (tag) => {
+    html = html.replace(/<figure\b[^>]*>/gi, "<div>").replace(/<\/figure>/gi, "</div>").replace(/<figcaption\b[^>]*>/gi, "<p><i>").replace(/<\/figcaption>/gi, "</i></p>").replace(/<img\b[^>]*>/gi, (tag) => {
       var _a;
       const alt = ((_a = /alt="([^"]*)"/.exec(tag)) == null ? void 0 : _a[1]) || "image";
       return `[${alt}]`;
@@ -4505,6 +4638,7 @@ ${body.trim()}`;
       const name = decodeURIComponent(String(title).replace(/\+/g, " ")).replace(/_/g, " ");
       return `href="wiki://${encodeURIComponent(name)}"`;
     });
+    return qmlHtml(html);
   }
   function renderPage(wiki, rawTitle, editable = false) {
     const title = parseTitle(rawTitle);

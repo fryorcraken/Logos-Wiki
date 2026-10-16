@@ -72,6 +72,11 @@ test("bundled snapshot loads the imported Main Page", () => {
   const page = W.renderPage(wiki, "Main Page");
   assert.equal(page.missing, false);
   assert.match(page.source || page.html, /Parallel Wiki/);
+  assert.match(page.html, /bgcolor="#cef2e0"/);
+  assert.match(page.html, /Featured page/);
+  assert.match(page.html, /Did you know/);
+  assert.match(page.html, /Circle news/);
+  assert.match(page.html, /<table[^>]*border="1"/);
   assert.equal(typeof wiki.stats().pages, "number");
   assert.ok(wiki.stats().pages > 100);
   assert.ok(wiki.stats().edits >= 250);
