@@ -9,7 +9,6 @@ Item {
     property string summarySeed: ""
     property bool creating: false
     property bool sectionNew: false
-    property bool readOnly: false
     property var previewFn
     property var diffFn
     signal cancelled
@@ -24,7 +23,7 @@ Item {
     onSourceChanged: if (editor) editor.text = source
 
     function showPanel(kind) {
-        if (root.readOnly || !kind) return
+        if (!kind) return
         root.busy = true
         root.error = ""
         if (kind === "preview" && root.previewFn) root.panelHtml = root.previewFn(editor.text)
@@ -35,7 +34,6 @@ Item {
     }
 
     function save() {
-        if (root.readOnly) return
         root.published(editor.text, summary.text, minor.checked)
     }
 
@@ -105,14 +103,12 @@ Item {
             Layout.fillHeight: true
             wrapMode: TextArea.Wrap
             selectByMouse: true
-            readOnly: root.readOnly
             font.family: "monospace"
             font.pixelSize: 13
             Component.onCompleted: text = root.source
         }
 
         Text {
-            visible: !root.readOnly
             text: root.sectionNew ? "Subject:" : "Summary:"
             font.pixelSize: 14
             font.weight: Font.DemiBold
@@ -120,9 +116,8 @@ Item {
         }
         TextField {
             id: summary
-            visible: !root.readOnly
             Layout.fillWidth: true
-            Layout.preferredHeight: visible ? 36 : 0
+            Layout.preferredHeight: 36
             placeholderText: root.sectionNew ? "Section subject" : "Enter a short summary"
             selectByMouse: true
             text: root.summarySeed
@@ -130,27 +125,23 @@ Item {
 
         CheckBox {
             id: minor
-            visible: !root.readOnly
             text: "This is a minor edit"
         }
 
         RowLayout {
             spacing: 8
             WikiButton {
-                visible: !root.readOnly
                 primary: true
                 enabled: !root.busy
                 text: root.creating ? "Save page" : "Save changes"
                 onClicked: root.save()
             }
             WikiButton {
-                visible: !root.readOnly
                 enabled: !root.busy
                 text: "Show preview"
                 onClicked: root.showPanel("preview")
             }
             WikiButton {
-                visible: !root.readOnly
                 enabled: !root.busy
                 text: "Show changes"
                 onClicked: root.showPanel("diff")

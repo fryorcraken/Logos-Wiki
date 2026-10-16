@@ -46,8 +46,8 @@ Item {
         if (mode === "login") return "Log in"
         if (mode === "create") return "Create account"
         if (mode === "account") return userName ? userName : "Account"
-        if (mode === "edit" || mode === "source") {
-            var verb = (article && article.missing) ? "Creating" : (mode === "source" ? "View source for" : "Editing")
+        if (mode === "edit") {
+            var verb = (article && article.missing) ? "Creating" : "Editing"
             var suffix = editSection === "new" ? " (new section)" : (editSection ? " (section)" : "")
             return verb + " " + currentTitle + suffix
         }
@@ -115,8 +115,6 @@ Item {
         var tabs = []
         if (exists) tabs.push({ label: "Read", mode: "article" })
         if (can) tabs.push({ label: exists ? "Edit" : "Create", mode: "edit" })
-        else if (exists) tabs.push({ label: "View source", mode: "source" })
-        if (exists) tabs.push({ label: "View history", mode: "history" })
         tabModel = tabs
     }
 
@@ -127,8 +125,9 @@ Item {
             return
         }
         if (!Wiki.engineCanEdit(userKey, currentTitle)) {
-            if (article && !article.missing) mode = "source"
-            else notice = "You do not have permission to create this page."
+            notice = article && article.missing
+                ? "You do not have permission to create this page."
+                : "You do not have permission to edit this page."
             refreshTabs()
             return
         }
@@ -849,15 +848,6 @@ Item {
                                                 root.renderCurrent()
                                                 return
                                             }
-                                            if (modelData.mode === "history") {
-                                                root.mode = "history"
-                                                return
-                                            }
-                                            if (modelData.mode === "source") {
-                                                root.editSection = ""
-                                                root.mode = "source"
-                                                return
-                                            }
                                             root.beginEdit("")
                                         }
                                     }
@@ -872,8 +862,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         sourceComponent: {
-                            if (root.mode === "edit" || root.mode === "source") return editPage
-                            if (root.mode === "history") return historyPage
+                            if (root.mode === "edit") return editPage
                             if (root.mode === "login" || root.mode === "create") return authPage
                             if (root.mode === "account") return accountPage
                             if (root.mode === "special" || /^Special:/i.test(root.currentTitle)) return specialPage
@@ -1070,7 +1059,6 @@ Item {
             summarySeed: root.editSummarySeed()
             creating: !!(root.article && root.article.missing)
             sectionNew: root.editSection === "new"
-            readOnly: root.mode === "source"
             previewFn: function (text) {
                 return Wiki.enginePreview(root.currentTitle, text)
             }
@@ -1085,13 +1073,6 @@ Item {
             onCancelled: { root.editSection = ""; root.mode = "article"; root.renderCurrent() }
             onPublished: function (text, summary, minor) { root.publishEdit(root.currentTitle, text, summary, minor) }
             onOpenUrl: function (url) { root.openLink(url) }
-        }
-    }
-
-    Component {
-        id: historyPage
-        HistoryPage {
-            revisions: Wiki.engineRevisions(root.currentTitle)
         }
     }
 
