@@ -107,12 +107,10 @@ Flickable {
                 text: root.adminKey
                 selectByMouse: true
                 color: root.ink
-                background: Rectangle {
-                    radius: 2
-                    color: root.paper
-                    border.width: 1
-                    border.color: adminField.activeFocus ? root.link : root.line
-                }
+                placeholderTextColor: root.muted
+                palette.base: root.paper
+                palette.text: root.ink
+                palette.mid: root.line
             }
             TextField {
                 id: cidField
@@ -122,12 +120,10 @@ Flickable {
                 text: root.snapshotCid
                 selectByMouse: true
                 color: root.ink
-                background: Rectangle {
-                    radius: 2
-                    color: root.paper
-                    border.width: 1
-                    border.color: cidField.activeFocus ? root.link : root.line
-                }
+                placeholderTextColor: root.muted
+                palette.base: root.paper
+                palette.text: root.ink
+                palette.mid: root.line
             }
             WikiButton {
                 primary: true
@@ -162,12 +158,9 @@ Flickable {
                 selectByMouse: true
                 font.family: "monospace"
                 color: root.ink
+                palette.base: root.paper
+                palette.text: root.ink
                 text: (Wiki.engineTrusted() || []).join("\n")
-                background: Rectangle {
-                    color: root.paper
-                    border.width: 1
-                    border.color: editorsField.activeFocus ? root.link : root.line
-                }
             }
             WikiButton {
                 primary: true

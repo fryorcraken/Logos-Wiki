@@ -118,12 +118,9 @@ Item {
             font.family: "monospace"
             font.pixelSize: 13
             color: root.ink
+            palette.base: root.paper
+            palette.text: root.ink
             Component.onCompleted: text = root.source
-            background: Rectangle {
-                color: root.paper
-                border.width: 1
-                border.color: editor.activeFocus ? root.link : root.line
-            }
         }
 
         Text {
@@ -140,12 +137,10 @@ Item {
             selectByMouse: true
             text: root.summarySeed
             color: root.ink
-            background: Rectangle {
-                radius: 2
-                color: root.paper
-                border.width: 1
-                border.color: summary.activeFocus ? root.link : root.line
-            }
+            placeholderTextColor: root.muted
+            palette.base: root.paper
+            palette.text: root.ink
+            palette.mid: root.line
         }
 
         CheckBox {

@@ -97,13 +97,11 @@ Item {
                 selectByMouse: true
                 enabled: !root.busy
                 color: root.ink
+                placeholderTextColor: root.muted
+                palette.base: root.paper
+                palette.text: root.ink
+                palette.mid: root.line
                 onAccepted: root.submit()
-                background: Rectangle {
-                    radius: 2
-                    color: root.paper
-                    border.width: 1
-                    border.color: name.activeFocus ? root.link : root.line
-                }
             }
 
             Text {
@@ -121,13 +119,11 @@ Item {
                 selectByMouse: true
                 enabled: !root.busy
                 color: root.ink
+                placeholderTextColor: root.muted
+                palette.base: root.paper
+                palette.text: root.ink
+                palette.mid: root.line
                 onAccepted: root.submit()
-                background: Rectangle {
-                    radius: 2
-                    color: root.paper
-                    border.width: 1
-                    border.color: password.activeFocus ? root.link : root.line
-                }
             }
             Text {
                 visible: root.creating
@@ -155,13 +151,11 @@ Item {
                 selectByMouse: true
                 enabled: !root.busy
                 color: root.ink
+                placeholderTextColor: root.muted
+                palette.base: root.paper
+                palette.text: root.ink
+                palette.mid: root.line
                 onAccepted: root.submit()
-                background: Rectangle {
-                    radius: 2
-                    color: root.paper
-                    border.width: 1
-                    border.color: retype.activeFocus ? root.link : root.line
-                }
             }
 
             CheckBox {
