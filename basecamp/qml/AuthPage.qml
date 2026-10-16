@@ -125,37 +125,38 @@ Item {
                 palette.mid: root.line
                 onAccepted: root.submit()
             }
-            Text {
+            Column {
                 visible: root.creating
                 Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                color: root.muted
-                font.pixelSize: 13
-                text: "Your password is your key: it cannot be reset, so store it safely. Use a unique password of at least 10 characters."
-            }
-
-            Text {
-                visible: root.creating
-                text: "Confirm password"
-                color: root.ink
-                font.pixelSize: 14
-                font.weight: Font.DemiBold
-            }
-            TextField {
-                id: retype
-                visible: root.creating
-                Layout.fillWidth: true
-                Layout.preferredHeight: 36
-                placeholderText: "Enter password again"
-                echoMode: TextInput.Password
-                selectByMouse: true
-                enabled: !root.busy
-                color: root.ink
-                placeholderTextColor: root.muted
-                palette.base: root.paper
-                palette.text: root.ink
-                palette.mid: root.line
-                onAccepted: root.submit()
+                spacing: 8
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    color: root.muted
+                    font.pixelSize: 13
+                    text: "Your password is your key: it cannot be reset, so store it safely. Use a unique password of at least 10 characters."
+                }
+                Text {
+                    text: "Confirm password"
+                    color: root.ink
+                    font.pixelSize: 14
+                    font.weight: Font.DemiBold
+                }
+                TextField {
+                    id: retype
+                    width: parent.width
+                    height: 36
+                    placeholderText: "Enter password again"
+                    echoMode: TextInput.Password
+                    selectByMouse: true
+                    enabled: !root.busy
+                    color: root.ink
+                    placeholderTextColor: root.muted
+                    palette.base: root.paper
+                    palette.text: root.ink
+                    palette.mid: root.line
+                    onAccepted: root.submit()
+                }
             }
 
             CheckBox {

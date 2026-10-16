@@ -209,7 +209,8 @@ Item {
     }
 
     function scrollArticleTop() {
-        if (pageLoader.item) pageLoader.item.contentY = 0
+        var item = pageLoader.item
+        if (item && item.contentY !== undefined) item.contentY = 0
     }
 
     function scrollToSection(anchor) {
@@ -461,7 +462,7 @@ Item {
             : ("You are now logged in as " + userName + ".")
         if (/^Special:(UserLogin|CreateAccount|UserLogout)$/i.test(currentTitle)) currentTitle = Wiki.MAIN_PAGE
         mode = "article"
-        renderCurrent()
+        Qt.callLater(renderCurrent)
         return true
     }
 
