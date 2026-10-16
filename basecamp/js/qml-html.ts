@@ -32,6 +32,7 @@ const LIGHT = {
   red: "#ba0000",
   mint: "#cef2e0",
   cream: "#fef6e7",
+  info: "#cedff2",
   del: "#8f0000",
   ins: "#006400",
 };
@@ -48,6 +49,7 @@ const DARK = {
   red: "#fd7865",
   mint: "#274a32",
   cream: "#3b3420",
+  info: "#233549",
   del: "#fd7865",
   ins: "#80d4a0",
 };
@@ -61,7 +63,8 @@ const FILL: { [hex: string]: keyof typeof DARK } = {
   "#c8ccd1": "lineSoft",
   "#cef2e0": "mint",
   "#fef6e7": "cream",
-  "#eaf3ff": "wash",
+  "#eaf3ff": "info",
+  "#cedff2": "info",
 };
 
 const TEXT: { [hex: string]: keyof typeof DARK } = {

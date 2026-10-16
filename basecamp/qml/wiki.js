@@ -4506,6 +4506,7 @@ ${body.trim()}`;
     red: "#ba0000",
     mint: "#cef2e0",
     cream: "#fef6e7",
+    info: "#cedff2",
     del: "#8f0000",
     ins: "#006400"
   };
@@ -4521,6 +4522,7 @@ ${body.trim()}`;
     red: "#fd7865",
     mint: "#274a32",
     cream: "#3b3420",
+    info: "#233549",
     del: "#fd7865",
     ins: "#80d4a0"
   };
@@ -4533,7 +4535,8 @@ ${body.trim()}`;
     "#c8ccd1": "lineSoft",
     "#cef2e0": "mint",
     "#fef6e7": "cream",
-    "#eaf3ff": "wash"
+    "#eaf3ff": "info",
+    "#cedff2": "info"
   };
   var TEXT = {
     "#000": "ink",

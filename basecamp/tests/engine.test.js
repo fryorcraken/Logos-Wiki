@@ -161,6 +161,11 @@ test("Vector night remaps box, table, infobox, and link colors", () => {
       '<div style="border:1px solid #a2a9b1; background:#ffffff"><div style="background-color:#cef2e0">Featured page</div><p>Hello</p></div>',
     );
     assert.match(featured, /#274a32/);
+    const news = W.richText(
+      '<div style="border:1px solid #a2a9b1; background:#ffffff"><div style="background-color:#cedff2">Circle news</div><p>Hello</p></div>',
+    );
+    assert.match(news, /#233549/);
+    assert.doesNotMatch(news, /#cedff2/);
     assert.match(W.engineDiff("a", "b"), /#fd7865|#80d4a0|#54595d/);
     W.engineSetTheme(false)
     const light = W.richText(
