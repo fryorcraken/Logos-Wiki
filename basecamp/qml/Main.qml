@@ -765,10 +765,11 @@ Item {
         }
 
         Rectangle {
+            id: noticeBar
             Layout.fillWidth: true
-            Layout.preferredHeight: (authNotice.length || notice.length || busyText.length) ? Math.max(32, noticeLabel.implicitHeight + 16) : 0
+            visible: (root.busyText || root.authNotice || root.notice).length > 0
+            Layout.preferredHeight: visible ? Math.max(32, noticeLabel.implicitHeight + 16) : 0
             color: root.noticeFill
-            visible: height > 0
             Text {
                 id: noticeLabel
                 anchors.verticalCenter: parent.verticalCenter

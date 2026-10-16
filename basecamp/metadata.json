@@ -1,7 +1,7 @@
 {
   "name": "logos-wiki",
   "display_name": "Logos Wiki",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Read and edit the Logos Wiki from Basecamp. Same signed event log as the web wiki, via Storage and Delivery.",
   "author": "Logos Wiki",
   "type": "ui_qml",
