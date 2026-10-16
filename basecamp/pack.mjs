@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { deflateSync, gzipSync } from "node:zlib";
+import { gzipSync } from "node:zlib";
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const meta = JSON.parse(readFileSync(path.join(dir, "metadata.json"), "utf8"));
@@ -12,15 +12,6 @@ const qmlDir = path.join(dir, "qml");
 
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
-}
-
-function zlibCrc(buf) {
-  let c = ~0;
-  for (let i = 0; i < buf.length; i++) {
-    c ^= buf[i];
-    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  }
-  return ~c;
 }
 
 function walkFiles(root, prefix = "") {
@@ -103,61 +94,7 @@ function sortKeys(value) {
   return value;
 }
 
-function pngIconSync() {
-  const w = 256;
-  const h = 256;
-  const rows = [];
-  for (let y = 0; y < h; y++) {
-    const row = [0];
-    for (let x = 0; x < w; x++) {
-      const page = x >= 48 && x <= 208 && y >= 40 && y <= 228;
-      const bar = page && y < 88;
-      const glyph = bar && ((x >= 100 && x <= 108) || (x >= 152 && x <= 160) || (y >= 52 && y <= 60 && x >= 100 && x <= 160));
-      let r = 31,
-        g = 41,
-        b = 55;
-      if (page) {
-        r = 248;
-        g = 249;
-        b = 250;
-      }
-      if (bar) {
-        r = 51;
-        g = 102;
-        b = 204;
-      }
-      if (glyph) {
-        r = 255;
-        g = 255;
-        b = 255;
-      }
-      row.push(r, g, b);
-    }
-    rows.push(Buffer.from(row));
-  }
-  const raw = Buffer.concat(rows);
-  const chunk = (tag, data) => {
-    const t = Buffer.from(tag);
-    const len = Buffer.alloc(4);
-    len.writeUInt32BE(data.length);
-    const crcBuf = Buffer.alloc(4);
-    crcBuf.writeUInt32BE(zlibCrc(Buffer.concat([t, data])) >>> 0);
-    return Buffer.concat([len, t, data, crcBuf]);
-  };
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(w, 0);
-  ihdr.writeUInt32BE(h, 4);
-  ihdr[8] = 8;
-  ihdr[9] = 2;
-  return Buffer.concat([
-    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
-    chunk("IHDR", ihdr),
-    chunk("IDAT", deflateSync(raw, { level: 9 })),
-    chunk("IEND", Buffer.alloc(0)),
-  ]);
-}
-
-const icon = pngIconSync();
+const icon = readFileSync(path.join(dir, "assets/icon.png"));
 const qmlFiles = walkFiles(qmlDir).filter((f) => f.rel !== "wiki.js.map");
 const metadata = Buffer.from(JSON.stringify(meta, null, 2) + "\n");
 const variantFiles = [

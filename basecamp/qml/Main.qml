@@ -33,6 +33,20 @@ Item {
     readonly property color paper: "#ffffff"
     readonly property color wash: "#f8f9fa"
     readonly property color header: "#eaecf0"
+    property var tocItems: []
+    readonly property bool showToc: mode === "article" && tocItems && tocItems.length >= 4
+    readonly property string headingText: {
+        if (mode === "login") return "Log in"
+        if (mode === "create") return "Create account"
+        if (mode === "account") return userName ? userName : "Account"
+        if (currentTitle === "Special:RecentChanges") return "Recent changes"
+        if (currentTitle === "Special:AllPages") return "All pages"
+        if (currentTitle === "Special:SpecialPages") return "Special pages"
+        if (currentTitle === "Special:Settings") return "Settings"
+        if (currentTitle === "Special:TrustedEditors") return "Trusted editors"
+        return currentTitle
+    }
+    readonly property bool showTabs: mode !== "login" && mode !== "create" && mode !== "account" && mode !== "special" && !/^Special:/i.test(currentTitle)
 
     function db() {
         return LocalStorage.openDatabaseSync("logos-wiki", "1.0", "Logos Wiki cache", 10 * 1024 * 1024)
@@ -75,9 +89,11 @@ Item {
         var hop = Wiki.engineFollowRedirect(currentTitle)
         if (hop.hops && hop.title !== currentTitle) currentTitle = hop.title
         article = Wiki.engineRenderPage(currentTitle, userKey !== "" && Wiki.engineCanEdit(userKey, currentTitle))
+        tocItems = article && article.toc === false ? [] : ((article && article.headings) ? article.headings : [])
         var stats = Wiki.engineStats()
         pageCount = stats && stats.pages ? stats.pages : 0
         if (mode === "article" || mode === "missing") mode = article.missing ? "missing" : "article"
+        scrollArticleTop()
     }
 
     function openTitle(title) {
@@ -104,6 +120,21 @@ Item {
     function goMenu(title) {
         menuOpen = false
         openTitle(title)
+    }
+
+    function scrollArticleTop() {
+        if (pageLoader.item) pageLoader.item.contentY = 0
+    }
+
+    function categoryLine() {
+        var cats = article && article.categories ? article.categories : []
+        if (!cats.length) return ""
+        var parts = []
+        for (var i = 0; i < cats.length; i++) {
+            var name = cats[i].name || cats[i]
+            parts.push('<a href="wiki://' + encodeURIComponent("Category:" + name) + '">' + name + "</a>")
+        }
+        return "<p>Categories: " + parts.join(" · ") + "</p>"
     }
 
     function openLink(link) {
@@ -515,7 +546,7 @@ Item {
                     id: searchField
                     Layout.preferredWidth: 240
                     Layout.preferredHeight: 32
-                    placeholderText: "Search or go to"
+                    placeholderText: "Search"
                     selectByMouse: true
                     leftPadding: 8
                     rightPadding: 8
@@ -530,13 +561,8 @@ Item {
                     }
                 }
                 WikiButton {
-                    text: "Go"
+                    text: "Search"
                     onClicked: root.openTitle(searchField.text)
-                }
-                WikiButton {
-                    primary: !root.userName
-                    text: root.userName ? root.userName : "Log in"
-                    onClicked: root.mode = root.userName ? "account" : "login"
                 }
             }
         }
@@ -561,93 +587,169 @@ Item {
             Layout.fillHeight: true
             color: root.paper
 
-            ColumnLayout {
+            RowLayout {
                 anchors.fill: parent
                 spacing: 0
 
                 Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 48
+                    visible: root.showToc
+                    Layout.preferredWidth: visible ? 232 : 0
+                    Layout.fillHeight: true
                     color: root.paper
-                    RowLayout {
+                    Rectangle {
+                        anchors.right: parent.right
+                        width: 1
+                        height: parent.height
+                        color: root.line
+                    }
+                    Flickable {
                         anchors.fill: parent
-                        anchors.leftMargin: 28
-                        anchors.rightMargin: 8
-                        spacing: 4
-                        Text {
-                            text: root.currentTitle
-                            color: root.ink
-                            font.pixelSize: 22
-                            font.bold: true
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                        }
-                        Repeater {
-                            model: [
-                                { label: "Read", mode: "article" },
-                                { label: "Edit", mode: "edit" },
-                                { label: "History", mode: "history" }
-                            ]
-                            Item {
-                                visible: !/^Special:/i.test(root.currentTitle)
-                                width: visible ? tabLabel.implicitWidth + 24 : 0
-                                height: 48
-                                Text {
-                                    id: tabLabel
-                                    anchors.centerIn: parent
-                                    text: modelData.label
-                                    font.pixelSize: 14
-                                    font.weight: root.mode === modelData.mode ? Font.DemiBold : Font.Normal
-                                    color: root.mode === modelData.mode ? root.ink : root.muted
-                                }
-                                Rectangle {
-                                    anchors.bottom: parent.bottom
-                                    width: parent.width
-                                    height: 3
-                                    color: root.mode === modelData.mode ? root.link : "transparent"
-                                }
+                        anchors.leftMargin: 16
+                        anchors.rightMargin: 12
+                        anchors.topMargin: 16
+                        anchors.bottomMargin: 12
+                        clip: true
+                        contentHeight: tocCol.implicitHeight
+                        Column {
+                            id: tocCol
+                            width: parent.width
+                            spacing: 8
+                            Text {
+                                text: "Contents"
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                                color: root.ink
+                            }
+                            Rectangle { width: tocCol.width; height: 1; color: root.line }
+                            Text {
+                                text: "Beginning"
+                                font.pixelSize: 14
+                                color: root.link
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        if (modelData.mode === "article") {
-                                            root.mode = "article"
-                                            root.renderCurrent()
-                                            return
-                                        }
-                                        if (modelData.mode === "history") {
-                                            root.mode = "history"
-                                            return
-                                        }
-                                        if (!root.userKey) {
-                                            root.mode = "login"
-                                            root.notice = "Log in to edit."
-                                            return
-                                        }
-                                        if (!Wiki.engineCanEdit(root.userKey, root.currentTitle)) {
-                                            root.notice = "You cannot edit this page."
-                                            return
-                                        }
-                                        root.mode = "edit"
-                                    }
+                                    onClicked: root.scrollArticleTop()
+                                }
+                            }
+                            Repeater {
+                                model: root.tocItems
+                                Text {
+                                    width: tocCol.width
+                                    wrapMode: Text.Wrap
+                                    leftPadding: Math.max(0, ((modelData.toclevel || 1) - 1) * 12)
+                                    text: (modelData.number ? modelData.number + "  " : "") + (modelData.text || "")
+                                    font.pixelSize: 14
+                                    color: root.link
                                 }
                             }
                         }
                     }
                 }
-                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: root.line }
 
-                Loader {
-                    id: pageLoader
+                ColumnLayout {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    sourceComponent: {
-                        if (root.mode === "edit") return editPage
-                        if (root.mode === "history") return historyPage
-                        if (root.mode === "login" || root.mode === "create") return authPage
-                        if (root.mode === "account") return accountPage
-                        if (root.mode === "special" || /^Special:/i.test(root.currentTitle)) return specialPage
-                        return articlePage
+                    spacing: 0
+
+                    Column {
+                        Layout.fillWidth: true
+                        Layout.leftMargin: 20
+                        Layout.rightMargin: 20
+                        Layout.topMargin: 10
+                        Layout.bottomMargin: 4
+                        spacing: 2
+                        Text {
+                            width: parent.width
+                            text: root.headingText
+                            color: root.ink
+                            font.pixelSize: 32
+                            font.bold: true
+                            wrapMode: Text.Wrap
+                        }
+                        Text {
+                            visible: (root.mode === "article" || root.mode === "missing") && root.currentTitle !== Wiki.MAIN_PAGE
+                            text: "From " + Wiki.SITENAME
+                            color: root.muted
+                            font.pixelSize: 13
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: root.showTabs ? 40 : 0
+                        color: root.paper
+                        visible: root.showTabs
+                        Row {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 8
+                            anchors.bottom: parent.bottom
+                            height: 40
+                            Repeater {
+                                model: [
+                                    { label: "Read", mode: "article" },
+                                    { label: "Edit", mode: "edit" },
+                                    { label: "History", mode: "history" }
+                                ]
+                                Item {
+                                    width: tabLabel.implicitWidth + 24
+                                    height: 40
+                                    Text {
+                                        id: tabLabel
+                                        anchors.centerIn: parent
+                                        text: modelData.label
+                                        font.pixelSize: 15
+                                        font.weight: root.mode === modelData.mode ? Font.DemiBold : Font.Normal
+                                        color: root.mode === modelData.mode ? root.ink : root.muted
+                                    }
+                                    Rectangle {
+                                        anchors.bottom: parent.bottom
+                                        width: parent.width
+                                        height: 3
+                                        color: root.mode === modelData.mode ? root.link : "transparent"
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            if (modelData.mode === "article") {
+                                                root.mode = "article"
+                                                root.renderCurrent()
+                                                return
+                                            }
+                                            if (modelData.mode === "history") {
+                                                root.mode = "history"
+                                                return
+                                            }
+                                            if (!root.userKey) {
+                                                root.mode = "login"
+                                                root.notice = "Log in to edit."
+                                                return
+                                            }
+                                            if (!Wiki.engineCanEdit(root.userKey, root.currentTitle)) {
+                                                root.notice = "You cannot edit this page."
+                                                return
+                                            }
+                                            root.mode = "edit"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: root.line }
+
+                    Loader {
+                        id: pageLoader
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        sourceComponent: {
+                            if (root.mode === "edit") return editPage
+                            if (root.mode === "history") return historyPage
+                            if (root.mode === "login" || root.mode === "create") return authPage
+                            if (root.mode === "account") return accountPage
+                            if (root.mode === "special" || /^Special:/i.test(root.currentTitle)) return specialPage
+                            return articlePage
+                        }
                     }
                 }
             }
@@ -738,7 +840,17 @@ Item {
                 }
             }
 
-            Item { height: 16 }
+            Item { height: 12 }
+            WikiButton {
+                width: drawer.width - 32
+                primary: !root.userName
+                text: root.userName ? root.userName : "Log in"
+                onClicked: {
+                    root.menuOpen = false
+                    root.mode = root.userName ? "account" : "login"
+                }
+            }
+            Item { height: 12 }
             Text { text: root.pageCount + " pages"; color: root.muted; font.pixelSize: 11 }
         }
     }
@@ -746,21 +858,49 @@ Item {
     Component {
         id: articlePage
         Flickable {
+            id: articleFlick
             clip: true
             contentWidth: width
-            contentHeight: body.implicitHeight + 48
+            contentHeight: bodyCol.implicitHeight + 32
             ScrollBar.vertical: ScrollBar {}
-            Text {
-                id: body
-                width: parent.width - 56
-                x: 28
-                y: 16
-                wrapMode: Text.Wrap
-                textFormat: Text.RichText
-                color: root.ink
-                font.pixelSize: 15
-                text: root.article && root.article.html ? root.article.html : ""
-                onLinkActivated: root.openLink(link)
+            Column {
+                id: bodyCol
+                width: parent.width - 40
+                x: 20
+                y: 12
+                spacing: 16
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    textFormat: Text.RichText
+                    color: root.ink
+                    font.pixelSize: 16
+                    lineHeight: 1.35
+                    lineHeightMode: Text.ProportionalHeight
+                    text: root.article && root.article.html ? root.article.html : ""
+                    onLinkActivated: root.openLink(link)
+                }
+                Rectangle {
+                    visible: root.article && root.article.categories && root.article.categories.length
+                    width: parent.width
+                    height: cats.implicitHeight + 16
+                    color: root.wash
+                    border.color: root.line
+                    border.width: 1
+                    Text {
+                        id: cats
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.margins: 8
+                        wrapMode: Text.Wrap
+                        textFormat: Text.RichText
+                        font.pixelSize: 14
+                        color: root.ink
+                        text: root.categoryLine()
+                        onLinkActivated: root.openLink(link)
+                    }
+                }
             }
         }
     }
@@ -802,12 +942,11 @@ Item {
             contentHeight: col.implicitHeight + 32
             Column {
                 id: col
-                x: 28
-                y: 16
-                width: parent.width - 56
+                x: 20
+                y: 12
+                width: parent.width - 40
                 spacing: 12
-                Text { text: "Signed in as " + root.userName; font.pixelSize: 16; color: root.ink }
-                Text { text: "Key: " + root.userKey; font.pixelSize: 12; color: root.muted; wrapMode: Text.Wrap; width: parent.width }
+                Text { text: "Key: " + root.userKey; font.pixelSize: 13; color: root.muted; wrapMode: Text.Wrap; width: parent.width }
                 WikiButton { text: "Log out"; onClicked: { root.logout(); root.mode = "article" } }
             }
         }

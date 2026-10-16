@@ -12,17 +12,15 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 28
+        anchors.leftMargin: 20
+        anchors.rightMargin: 20
+        anchors.topMargin: 12
         spacing: 10
 
         Text {
-            text: creating ? "Create account" : "Log in"
-            font.pixelSize: 20
-            font.bold: true
-        }
-        Text {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
+            font.pixelSize: 15
             text: creating
                   ? "The key is derived in this app with scrypt. The same name and password work on the web wiki."
                   : "Use the same name and password as the web wiki. Deriving the key can take a few seconds."

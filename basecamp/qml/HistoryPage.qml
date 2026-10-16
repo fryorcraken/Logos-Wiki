@@ -10,14 +10,15 @@ Flickable {
 
     Column {
         id: col
-        x: 28
-        y: 16
-        width: parent.width - 56
+        x: 20
+        y: 12
+        width: parent.width - 40
         spacing: 8
 
         Text {
             text: revisions && revisions.length ? revisions.length + " revisions" : "No history yet."
             color: "#54595d"
+            font.pixelSize: 15
         }
 
         Repeater {
@@ -33,14 +34,15 @@ Flickable {
                     anchors.verticalCenter: parent.verticalCenter
                     anchors.margins: 8
                     spacing: 12
-                    Text { text: String(modelData.id); width: 48; color: "#54595d" }
-                    Text { text: Wiki.formatDateTime(modelData.ts); width: 180; color: "#202122" }
-                    Text { text: modelData.user; width: 120; color: "#3366cc" }
+                    Text { text: String(modelData.id); width: 48; color: "#54595d"; font.pixelSize: 14 }
+                    Text { text: Wiki.formatDateTime(modelData.ts); width: 180; color: "#202122"; font.pixelSize: 14 }
+                    Text { text: modelData.user; width: 120; color: "#3366cc"; font.pixelSize: 14 }
                     Text {
                         text: modelData.summary || (modelData.minor ? "m" : "")
                         width: parent.width - 380
                         elide: Text.ElideRight
                         color: "#202122"
+                        font.pixelSize: 14
                     }
                 }
             }

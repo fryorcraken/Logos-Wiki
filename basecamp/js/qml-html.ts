@@ -82,9 +82,9 @@ function elements(node: QmlNode) {
 
 function box(header: string, headerBg: string, body: string) {
   const head = header
-    ? `<tr><td bgcolor="${headerBg || "#eaecf0"}"><p><b>${header}</b></p></td></tr>`
+    ? `<tr><td bgcolor="${headerBg || "#eaecf0"}"><p><font size="4"><b>${header}</b></font></p></td></tr>`
     : "";
-  return `<table width="100%" cellspacing="0" cellpadding="8" border="1" bordercolor="#a2a9b1" bgcolor="#ffffff">${head}<tr><td>${body}</td></tr></table><p></p>`;
+  return `<table width="100%" cellspacing="0" cellpadding="10" border="1" bordercolor="#a2a9b1" bgcolor="#ffffff">${head}<tr><td>${body}</td></tr></table><p></p>`;
 }
 
 function transform(nodes: Array<QmlNode | string>): string {
@@ -96,13 +96,18 @@ function transform(nodes: Array<QmlNode | string>): string {
 function transformOne(node: QmlNode | string): string {
   if (typeof node === "string") return node;
   const style = styleFrom(node.attrs);
+  if (/^h[1-6]$/.test(node.tag)) {
+    const inner = transform(node.children);
+    const size = node.tag === "h1" ? "6" : node.tag === "h2" ? "5" : node.tag === "h3" ? "4" : "3";
+    return `<p><font size="${size}"><b>${inner}</b></font></p>`;
+  }
   if (node.tag === "div" && isFlex(style)) {
     const cols = elements(node);
     let cells = "";
     for (let i = 0; i < cols.length; i++) cells += `<td valign="top">${transformOne(cols[i])}</td>`;
     const border = hasBorder(style) ? ` border="1" bordercolor="#c8ccd1"` : "";
     const bg = colorOf(style);
-    return `<table width="100%" cellspacing="8" cellpadding="8"${border}${bg ? ` bgcolor="${bg}"` : ""}><tr>${cells}</tr></table><p></p>`;
+    return `<table width="100%" cellspacing="10" cellpadding="10"${border}${bg ? ` bgcolor="${bg}"` : ""}><tr>${cells}</tr></table><p></p>`;
   }
   if (node.tag === "div" && hasBorder(style)) {
     const kids = elements(node);
@@ -126,8 +131,9 @@ function transformOne(node: QmlNode | string): string {
     const fg = /#([0-9a-f]{3,6})/i.exec(style.color || "");
     const bg = colorOf(style);
     if (weight === "bold" || Number(weight) >= 600) inner = `<b>${inner}</b>`;
-    if (size.indexOf("2em") >= 0) inner = `<h2>${inner}</h2>`;
-    else if (size.indexOf("1.1") >= 0 || size.indexOf("1.15") >= 0) inner = `<b>${inner}</b>`;
+    if (size.indexOf("2em") >= 0) inner = `<font size="6"><b>${inner}</b></font>`;
+    else if (size.indexOf("1.5") >= 0) inner = `<font size="5"><b>${inner}</b></font>`;
+    else if (size.indexOf("1.1") >= 0 || size.indexOf("1.15") >= 0) inner = `<font size="4"><b>${inner}</b></font>`;
     if (fg) inner = `<font color="#${fg[1]}">${inner}</font>`;
     const alignAttr = align === "center" || align === "right" ? ` align="${align}"` : "";
     const block = /<(p|ul|ol|table|h[1-6]|div)\b/i.test(inner);
@@ -141,6 +147,16 @@ function transformOne(node: QmlNode | string): string {
   return `<${node.tag}${node.attrs}>${inner}</${node.tag}>`;
 }
 
+function stripStatus(html: string) {
+  return html
+    .replace(/<div\b[^>]*>[\s\S]{0,500}?Every page carries a status[\s\S]*?<\/div>/gi, "")
+    .replace(/<div\b[^>]*>[\s\S]{0,500}?Page status:[\s\S]*?change (?:its|this page'?s) status\.?[\s\S]{0,80}<\/div>/gi, "")
+    .replace(/<p\b[^>]*>[\s\S]{0,160}?Every page carries a status[\s\S]*?<\/p>/gi, "")
+    .replace(/<p\b[^>]*>[\s\S]{0,160}?Page status:[\s\S]*?change (?:its|this page'?s) status\.?[\s\S]{0,40}<\/p>/gi, "")
+    .replace(/Every page carries a status:[\s\S]{0,280}/gi, "")
+    .replace(/Page status:\s*(?:<b>[\s\S]*?<\/b>)?[\s\S]{0,220}change (?:its|this page'?s) status\.?/gi, "");
+}
+
 export function qmlHtml(html: string) {
-  return transform(parseFragment(html));
+  return transform(parseFragment(stripStatus(html)));
 }

@@ -15,15 +15,6 @@ Flickable {
     contentHeight: body.implicitHeight + 40
     ScrollBar.vertical: ScrollBar {}
 
-    function heading() {
-        if (title === "Special:RecentChanges") return "Recent changes"
-        if (title === "Special:AllPages") return "All pages"
-        if (title === "Special:SpecialPages") return "Special pages"
-        if (title === "Special:Settings") return "Settings"
-        if (title === "Special:TrustedEditors") return "Trusted editors"
-        return title
-    }
-
     function items() {
         if (title === "Special:RecentChanges") return Wiki.engineRecent(100)
         if (title === "Special:AllPages") {
@@ -45,17 +36,10 @@ Flickable {
 
     Column {
         id: body
-        x: 28
-        y: 16
-        width: parent.width - 56
+        x: 20
+        y: 12
+        width: parent.width - 40
         spacing: 10
-
-        Text {
-            text: root.heading()
-            font.pixelSize: 18
-            font.bold: true
-            color: "#202122"
-        }
 
         Text {
             visible: title === "Special:TrustedEditors"
@@ -76,7 +60,7 @@ Flickable {
                     return modelData.page
                 }
                 color: "#3366cc"
-                font.pixelSize: 14
+                font.pixelSize: 16
                 width: body.width
                 wrapMode: Text.Wrap
                 MouseArea {

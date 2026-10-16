@@ -41,6 +41,7 @@ Item {
                 width: parent.width
                 wrapMode: Text.Wrap
                 textFormat: Text.RichText
+                font.pixelSize: 16
                 text: root.previewHtml
             }
         }

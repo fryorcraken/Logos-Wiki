@@ -77,7 +77,17 @@ test("bundled snapshot loads the imported Main Page", () => {
   assert.match(page.html, /Did you know/);
   assert.match(page.html, /Circle news/);
   assert.match(page.html, /<table[^>]*border="1"/);
+  assert.doesNotMatch(page.html, /Every page carries a status/);
+  assert.doesNotMatch(page.html, /Page status:/);
+  assert.equal(page.toc, false);
   assert.equal(typeof wiki.stats().pages, "number");
   assert.ok(wiki.stats().pages > 100);
   assert.ok(wiki.stats().edits >= 250);
+
+  const article = W.renderPage(wiki, "Parallel polis");
+  assert.equal(article.missing, false);
+  assert.ok(article.headings && article.headings.length >= 4);
+  assert.equal(article.toc, true);
+  assert.doesNotMatch(article.html, /Page status:/);
+  assert.doesNotMatch(article.html, /Every page carries a status/);
 });
