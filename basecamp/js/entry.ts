@@ -151,9 +151,21 @@ export function publishBody(seedHex: string, body: Body, ts?: number): Envelope 
   return sign(hexToBytes(seedHex), body, ts);
 }
 
+function decodeAnchor(raw: string) {
+  let value = raw || "";
+  try {
+    value = decodeURIComponent(value.replace(/\+/g, " "));
+  } catch (_e) {}
+  return value.replace(/ /g, "_");
+}
+
 export function parseWikiHref(link: string) {
-  const out = { title: "", action: "", section: "", redlink: false };
-  if (!link || link.charAt(0) === "#") return out;
+  const out = { title: "", action: "", section: "", redlink: false, anchor: "" };
+  if (!link) return out;
+  if (link.charAt(0) === "#") {
+    out.anchor = decodeAnchor(link.slice(1));
+    return out;
+  }
   let rest = link;
   if (rest.indexOf("wiki://") === 0) rest = rest.slice("wiki://".length);
   else if (rest.indexOf("/wiki/") === 0) rest = rest.slice("/wiki/".length);
@@ -161,10 +173,16 @@ export function parseWikiHref(link: string) {
   const hpos = rest.indexOf("#");
   let path = rest;
   let query = "";
+  let hash = "";
   if (qpos >= 0 && (hpos < 0 || qpos < hpos)) {
     path = rest.slice(0, qpos);
     query = hpos > qpos ? rest.slice(qpos + 1, hpos) : rest.slice(qpos + 1);
-  } else if (hpos >= 0) path = rest.slice(0, hpos);
+    if (hpos > qpos) hash = rest.slice(hpos + 1);
+  } else if (hpos >= 0) {
+    path = rest.slice(0, hpos);
+    hash = rest.slice(hpos + 1);
+  }
+  if (hash) out.anchor = decodeAnchor(hash);
   try {
     path = decodeURIComponent(path.replace(/\+/g, " ")).replace(/_/g, " ");
   } catch (_e) {
@@ -194,6 +212,25 @@ export function parseWikiHref(link: string) {
 
 export function parseWikiLink(link: string) {
   return parseWikiHref(link).title;
+}
+
+export function splitArticleHtml(html: string) {
+  const text = html || "";
+  const re = /<p><font size="\d+"><b><span class="mw-headline" id="([^"]+)">/g;
+  const hits: { id: string; index: number }[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(text))) hits.push({ id: match[1], index: match.index });
+  if (!hits.length) return [{ anchor: "", html: text }];
+  const parts: { anchor: string; html: string }[] = [];
+  if (hits[0].index > 0) {
+    const lead = text.slice(0, hits[0].index);
+    if (lead.replace(/<[^>]+>/g, "").trim()) parts.push({ anchor: "", html: lead });
+  }
+  for (let i = 0; i < hits.length; i++) {
+    const end = i + 1 < hits.length ? hits[i + 1].index : text.length;
+    parts.push({ anchor: hits[i].id, html: text.slice(hits[i].index, end) });
+  }
+  return parts;
 }
 
 export function engineDiff(before: string, after: string) {

@@ -102,6 +102,11 @@ test("bundled snapshot loads the imported Main Page", () => {
   assert.match(circle.html, /class="wikitable"|bordercolor="#a2a9b1"/);
   assert.match(circle.html, /bgcolor="#eaecf0"/);
   assert.match(circle.html, /Know Your Landlord/);
+  const polisParts = W.splitArticleHtml(article.html);
+  assert.ok(polisParts.some((p) => p.anchor === "The_basics"));
+  assert.ok(polisParts.some((p) => p.anchor === "Sources"));
+  const circleParts = W.splitArticleHtml(circle.html);
+  assert.ok(circleParts.some((p) => p.anchor === "Winnable_issues_completed"));
 });
 
 test("parseWikiHref keeps edit, section, and redlink", () => {
@@ -115,6 +120,12 @@ test("parseWikiHref keeps edit, section, and redlink", () => {
   assert.equal(section.action, "edit");
   assert.equal(section.section, "2");
   assert.equal(W.parseWikiLink("wiki://Talk:Hello"), "Talk:Hello");
+  const hash = W.parseWikiHref("wiki://Parallel%20polis#The_basics");
+  assert.equal(hash.title, "Parallel polis");
+  assert.equal(hash.anchor, "The_basics");
+  const here = W.parseWikiHref("#Winnable_issues_completed");
+  assert.equal(here.title, "");
+  assert.equal(here.anchor, "Winnable_issues_completed");
 });
 
 test("richText keeps index.php edit query and colors red links", () => {

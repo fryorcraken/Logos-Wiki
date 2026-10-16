@@ -73,6 +73,7 @@ await esbuild.build({
       "publishBody",
       "parseWikiHref",
       "parseWikiLink",
+      "splitArticleHtml",
       "followRedirect",
       "appendSection",
       "bytesToHex",

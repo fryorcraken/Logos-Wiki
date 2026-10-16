@@ -1,23 +1,23 @@
 {
   "schemaVersion": 2,
   "repositoryName": "logos-wiki",
-  "generatedAt": "2026-10-16T14:26:10.106Z",
-  "latest": "0.1.6",
+  "generatedAt": "2026-10-16T14:38:46.123Z",
+  "latest": "0.1.7",
   "packages": [
     {
       "name": "logos-wiki",
       "versions": [
         {
-          "releasedAt": "2026-10-16T14:26:10.106Z",
-          "publisherRef": "basecamp-v0.1.6",
-          "url": "https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/basecamp/dist/logos-wiki-0.1.6.lgx",
+          "releasedAt": "2026-10-16T14:38:46.124Z",
+          "publisherRef": "basecamp-v0.1.7",
+          "url": "https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/basecamp/dist/logos-wiki-0.1.7.lgx",
           "urls": [
-            "https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/basecamp/dist/logos-wiki-0.1.6.lgx",
-            "https://github.com/uNexpectedR/Logos-Wiki/releases/download/basecamp-v0.1.6/logos-wiki-0.1.6.lgx"
+            "https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/basecamp/dist/logos-wiki-0.1.7.lgx",
+            "https://github.com/uNexpectedR/Logos-Wiki/releases/download/basecamp-v0.1.7/logos-wiki-0.1.7.lgx"
           ],
-          "size": 987868,
-          "sha256": "b97229e4b85b63b9311fb46a141ee4135abd8af488f1ea8ef8edbe36737f054f",
-          "rootHash": "8f9ae53213f80a76edf54f51206458b5921661387ca156718e73ed4e65271f0b",
+          "size": 990818,
+          "sha256": "7b5b2f297d90cfdc280c6b56f8761854811b33d36916b6a66d5e731c2cb7848d",
+          "rootHash": "f9a6d4b90df6f7c78945f72c4b50f2119101b4f70432b56fdccd863a3c9d3fed",
           "manifest": {
             "author": "Logos Wiki",
             "category": "apps",
@@ -29,12 +29,12 @@
             "display_name": "Logos Wiki",
             "hashes": {
               "assets": "30446e485d5321449209c40d62776bfef8fcf5fa94a06bf5a11d60f37841dafb",
-              "root": "8f9ae53213f80a76edf54f51206458b5921661387ca156718e73ed4e65271f0b",
-              "variants": "f9303847b4a01534adc01959d153208afe68d58a2e9a35a0c28a000b7ccedff4",
-              "variants/darwin-arm64": "add9004e6eee75d40c87a42c6604dfe6c32c554533ebc8bf9f439f2edee7cde0",
-              "variants/linux-amd64": "add9004e6eee75d40c87a42c6604dfe6c32c554533ebc8bf9f439f2edee7cde0",
-              "variants/linux-arm64": "add9004e6eee75d40c87a42c6604dfe6c32c554533ebc8bf9f439f2edee7cde0",
-              "variants/windows-x86_64": "add9004e6eee75d40c87a42c6604dfe6c32c554533ebc8bf9f439f2edee7cde0"
+              "root": "f9a6d4b90df6f7c78945f72c4b50f2119101b4f70432b56fdccd863a3c9d3fed",
+              "variants": "222caf7fdf210987354041044fe1a98b93cc172bd77b585210a941697a785eb2",
+              "variants/darwin-arm64": "b3931179e95fdd4d3e09f413dda3ec969ceb53599acfa0cedb4e73920740d31a",
+              "variants/linux-amd64": "b3931179e95fdd4d3e09f413dda3ec969ceb53599acfa0cedb4e73920740d31a",
+              "variants/linux-arm64": "b3931179e95fdd4d3e09f413dda3ec969ceb53599acfa0cedb4e73920740d31a",
+              "variants/windows-x86_64": "b3931179e95fdd4d3e09f413dda3ec969ceb53599acfa0cedb4e73920740d31a"
             },
             "icon": "assets/icon.png",
             "main": {
@@ -52,7 +52,7 @@
               }
             ],
             "type": "ui_qml",
-            "version": "0.1.6",
+            "version": "0.1.7",
             "view": "qml/Main.qml"
           }
         }

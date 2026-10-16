@@ -34,6 +34,8 @@ Item {
     readonly property color wash: "#f8f9fa"
     readonly property color header: "#eaecf0"
     property var tocItems: []
+    property var articleSections: []
+    property string pendingAnchor: ""
     property var tabModel: []
     property string editSection: ""
     property string pendingAuth: ""
@@ -105,8 +107,15 @@ Item {
         var stats = Wiki.engineStats()
         pageCount = stats && stats.pages ? stats.pages : 0
         if (mode === "article" || mode === "missing") mode = article.missing ? "missing" : "article"
+        articleSections = article && article.html ? Wiki.splitArticleHtml(article.html) : []
         refreshTabs()
-        scrollArticleTop()
+        if (pendingAnchor) {
+            var hop = pendingAnchor
+            pendingAnchor = ""
+            Qt.callLater(function () { root.scrollToSection(hop) })
+        } else {
+            scrollArticleTop()
+        }
     }
 
     function refreshTabs() {
@@ -198,6 +207,14 @@ Item {
         if (pageLoader.item) pageLoader.item.contentY = 0
     }
 
+    function scrollToSection(anchor) {
+        if (!anchor) {
+            scrollArticleTop()
+            return
+        }
+        if (pageLoader.item && pageLoader.item.jumpTo) pageLoader.item.jumpTo(anchor)
+    }
+
     function categoryLine() {
         var cats = article && article.categories ? article.categories : []
         if (!cats.length) return ""
@@ -216,9 +233,20 @@ Item {
             return
         }
         var href = Wiki.parseWikiHref(link)
-        if (!href || !href.title) return
-        openTitle(href.title)
-        if (href.action === "edit") beginEdit(href.section || "")
+        if (!href) return
+        var anchor = href.anchor || ""
+        if (href.title && href.title !== currentTitle) {
+            pendingAnchor = anchor
+            openTitle(href.title)
+            if (href.action === "edit") beginEdit(href.section || "")
+            return
+        }
+        if (href.action === "edit") {
+            beginEdit(href.section || "")
+            return
+        }
+        if (anchor) scrollToSection(anchor)
+        else if (href.title) openTitle(href.title)
     }
 
     function parseResult(payload) {
@@ -775,6 +803,11 @@ Item {
                                     text: (modelData.number ? modelData.number + "  " : "") + (modelData.text || "")
                                     font.pixelSize: 14
                                     color: root.link
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.scrollToSection(modelData.anchor || "")
+                                    }
                                 }
                             }
                         }
@@ -981,6 +1014,21 @@ Item {
             contentWidth: width
             contentHeight: bodyCol.implicitHeight + 32
             ScrollBar.vertical: ScrollBar {}
+
+            function jumpTo(anchor) {
+                if (!anchor) {
+                    contentY = 0
+                    return
+                }
+                for (var i = 0; i < sectionRepeater.count; i++) {
+                    var item = sectionRepeater.itemAt(i)
+                    if (!item || item.sectionAnchor !== anchor) continue
+                    var y = item.mapToItem(articleFlick.contentItem, 0, 0).y
+                    contentY = Math.max(0, Math.min(y - 4, Math.max(0, contentHeight - height)))
+                    return
+                }
+            }
+
             Column {
                 id: bodyCol
                 width: parent.width - 40
@@ -1014,17 +1062,21 @@ Item {
                         onClicked: root.beginEdit("")
                     }
                 }
-                Text {
-                    visible: !(root.article && root.article.missing)
-                    width: parent.width
-                    wrapMode: Text.Wrap
-                    textFormat: Text.RichText
-                    color: root.ink
-                    font.pixelSize: 16
-                    lineHeight: 1.35
-                    lineHeightMode: Text.ProportionalHeight
-                    text: root.article && root.article.html ? root.article.html : ""
-                    onLinkActivated: function (link) { root.openLink(link) }
+                Repeater {
+                    id: sectionRepeater
+                    model: root.article && root.article.missing ? [] : root.articleSections
+                    Text {
+                        property string sectionAnchor: modelData.anchor || ""
+                        width: bodyCol.width
+                        wrapMode: Text.Wrap
+                        textFormat: Text.RichText
+                        color: root.ink
+                        font.pixelSize: 16
+                        lineHeight: 1.35
+                        lineHeightMode: Text.ProportionalHeight
+                        text: modelData.html || ""
+                        onLinkActivated: function (link) { root.openLink(link) }
+                    }
                 }
                 Rectangle {
                     visible: root.article && root.article.categories && root.article.categories.length

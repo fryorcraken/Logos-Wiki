@@ -2563,6 +2563,7 @@ var WikiBag = function (list) {
     richText: () => richText,
     sectionText: () => sectionText,
     sign: () => sign,
+    splitArticleHtml: () => splitArticleHtml,
     validUsername: () => validUsername,
     verify: () => verify
   });
@@ -4751,9 +4752,21 @@ ${body.trim()}`;
   function publishBody(seedHex, body, ts) {
     return sign(hexToBytes2(seedHex), body, ts);
   }
+  function decodeAnchor(raw) {
+    let value = raw || "";
+    try {
+      value = decodeURIComponent(value.replace(/\+/g, " "));
+    } catch (_e) {
+    }
+    return value.replace(/ /g, "_");
+  }
   function parseWikiHref(link) {
-    const out = { title: "", action: "", section: "", redlink: false };
-    if (!link || link.charAt(0) === "#") return out;
+    const out = { title: "", action: "", section: "", redlink: false, anchor: "" };
+    if (!link) return out;
+    if (link.charAt(0) === "#") {
+      out.anchor = decodeAnchor(link.slice(1));
+      return out;
+    }
     let rest = link;
     if (rest.indexOf("wiki://") === 0) rest = rest.slice("wiki://".length);
     else if (rest.indexOf("/wiki/") === 0) rest = rest.slice("/wiki/".length);
@@ -4761,10 +4774,16 @@ ${body.trim()}`;
     const hpos = rest.indexOf("#");
     let path = rest;
     let query = "";
+    let hash = "";
     if (qpos >= 0 && (hpos < 0 || qpos < hpos)) {
       path = rest.slice(0, qpos);
       query = hpos > qpos ? rest.slice(qpos + 1, hpos) : rest.slice(qpos + 1);
-    } else if (hpos >= 0) path = rest.slice(0, hpos);
+      if (hpos > qpos) hash = rest.slice(hpos + 1);
+    } else if (hpos >= 0) {
+      path = rest.slice(0, hpos);
+      hash = rest.slice(hpos + 1);
+    }
+    if (hash) out.anchor = decodeAnchor(hash);
     try {
       path = decodeURIComponent(path.replace(/\+/g, " ")).replace(/_/g, " ");
     } catch (_e) {
@@ -4794,6 +4813,24 @@ ${body.trim()}`;
   }
   function parseWikiLink(link) {
     return parseWikiHref(link).title;
+  }
+  function splitArticleHtml(html) {
+    const text = html || "";
+    const re = /<p><font size="\d+"><b><span class="mw-headline" id="([^"]+)">/g;
+    const hits = [];
+    let match;
+    while (match = re.exec(text)) hits.push({ id: match[1], index: match.index });
+    if (!hits.length) return [{ anchor: "", html: text }];
+    const parts = [];
+    if (hits[0].index > 0) {
+      const lead = text.slice(0, hits[0].index);
+      if (lead.replace(/<[^>]+>/g, "").trim()) parts.push({ anchor: "", html: lead });
+    }
+    for (let i = 0; i < hits.length; i++) {
+      const end = i + 1 < hits.length ? hits[i + 1].index : text.length;
+      parts.push({ anchor: hits[i].id, html: text.slice(hits[i].index, end) });
+    }
+    return parts;
   }
   function engineDiff(before, after) {
     const rows = diffRows(before || "", after || "").replace(/<del\b[^>]*>/gi, '<font color="#8f0000">').replace(/<\/del>/gi, "</font>").replace(/<ins\b[^>]*>/gi, '<font color="#006400">').replace(/<\/ins>/gi, "</font>");
@@ -4927,6 +4964,7 @@ var canEditPage = WikiEngine.canEditPage;
 var publishBody = WikiEngine.publishBody;
 var parseWikiHref = WikiEngine.parseWikiHref;
 var parseWikiLink = WikiEngine.parseWikiLink;
+var splitArticleHtml = WikiEngine.splitArticleHtml;
 var followRedirect = WikiEngine.followRedirect;
 var appendSection = WikiEngine.appendSection;
 var bytesToHex = WikiEngine.bytesToHex;
