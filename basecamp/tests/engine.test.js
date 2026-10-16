@@ -93,6 +93,15 @@ test("bundled snapshot loads the imported Main Page", () => {
   assert.equal(article.toc, true);
   assert.doesNotMatch(article.html, /Page status:/);
   assert.doesNotMatch(article.html, /Every page carries a status/);
+  assert.match(article.html, /The basics/);
+  assert.match(article.html, /<hr/);
+
+  const circle = W.renderPage(wiki, "Circles/Aba");
+  assert.equal(circle.missing, false);
+  assert.match(circle.html, /Winnable issues completed/);
+  assert.match(circle.html, /class="wikitable"|bordercolor="#a2a9b1"/);
+  assert.match(circle.html, /bgcolor="#eaecf0"/);
+  assert.match(circle.html, /Know Your Landlord/);
 });
 
 test("parseWikiHref keeps edit, section, and redlink", () => {
@@ -113,6 +122,20 @@ test("richText keeps index.php edit query and colors red links", () => {
   assert.match(html, /wiki:\/\/Missing(?:%20|\+)Page\?action=edit/);
   assert.match(html, /redlink=1/);
   assert.match(html, /#ba0000/);
+});
+
+test("article headings get Vector underlines and wikitables keep Vector chrome", () => {
+  const heading = W.richText('<h2><span class="mw-headline" id="The_basics">The basics</span></h2><p>Lead</p>');
+  assert.match(heading, /The basics/);
+  assert.match(heading, /<hr/);
+  const table = W.richText(
+    '<table class="wikitable" style="width:100%;"><tr><th>#</th><th>Issue</th></tr><tr><td>1</td><td>Housing</td></tr></table>',
+  );
+  assert.match(table, /border="1"/);
+  assert.match(table, /bordercolor="#a2a9b1"/);
+  assert.match(table, /bgcolor="#f8f9fa"/);
+  assert.match(table, /bgcolor="#eaecf0"/);
+  assert.match(table, /Housing/);
 });
 
 test("normalizeUsername matches the web wiki", () => {

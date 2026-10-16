@@ -80,11 +80,50 @@ function elements(node: QmlNode) {
   return out;
 }
 
-function box(header: string, headerBg: string, body: string) {
+function hasClass(attrs: string, name: string) {
+  const m = /\bclass="([^"]*)"/.exec(attrs);
+  return !!m && m[1].split(/\s+/).indexOf(name) >= 0;
+}
+
+function box(header: string, headerBg: string, body: string, bg = "#ffffff") {
   const head = header
     ? `<tr><td bgcolor="${headerBg || "#eaecf0"}"><p><font size="4"><b>${header}</b></font></p></td></tr>`
     : "";
-  return `<table width="100%" cellspacing="0" cellpadding="10" border="1" bordercolor="#a2a9b1" bgcolor="#ffffff">${head}<tr><td>${body}</td></tr></table><p></p>`;
+  return `<table width="100%" cellspacing="0" cellpadding="10" border="1" bordercolor="#a2a9b1" bgcolor="${bg}">${head}<tr><td>${body}</td></tr></table><p></p>`;
+}
+
+function headingRule() {
+  return "<hr />";
+}
+
+function wikiRows(node: QmlNode): string {
+  let html = "";
+  for (let i = 0; i < node.children.length; i++) {
+    const child = node.children[i];
+    if (typeof child === "string") {
+      html += child;
+      continue;
+    }
+    if (child.tag === "tr") html += `<tr${child.attrs}>${wikiCells(child)}</tr>`;
+    else if (child.tag === "tbody" || child.tag === "thead") html += wikiRows(child);
+    else html += transformOne(child);
+  }
+  return html;
+}
+
+function wikiCells(row: QmlNode): string {
+  let html = "";
+  for (let i = 0; i < row.children.length; i++) {
+    const child = row.children[i];
+    if (typeof child === "string") {
+      html += child;
+      continue;
+    }
+    const inner = transform(child.children);
+    if (child.tag === "th") html += `<th bgcolor="#eaecf0" align="center">${inner}</th>`;
+    else html += `<${child.tag}${child.attrs}>${inner}</${child.tag}>`;
+  }
+  return html;
 }
 
 function transform(nodes: Array<QmlNode | string>): string {
@@ -96,10 +135,18 @@ function transform(nodes: Array<QmlNode | string>): string {
 function transformOne(node: QmlNode | string): string {
   if (typeof node === "string") return node;
   const style = styleFrom(node.attrs);
+  if ((style.display || "").toLowerCase() === "none") return "";
   if (/^h[1-6]$/.test(node.tag)) {
     const inner = transform(node.children);
     const size = node.tag === "h1" ? "6" : node.tag === "h2" ? "5" : node.tag === "h3" ? "4" : "3";
-    return `<p><font size="${size}"><b>${inner}</b></font></p>`;
+    const heading = `<p><font size="${size}"><b>${inner}</b></font></p>`;
+    return node.tag === "h1" || node.tag === "h2" ? heading + headingRule() : heading;
+  }
+  if (node.tag === "table") {
+    if (hasClass(node.attrs, "wikitable")) {
+      return `<table width="100%" cellspacing="0" cellpadding="4" border="1" bordercolor="#a2a9b1" bgcolor="#f8f9fa">${wikiRows(node)}</table><p></p>`;
+    }
+    return `<table${node.attrs}>${transform(node.children)}</table>`;
   }
   if (node.tag === "a") {
     const inner = transform(node.children);
@@ -126,7 +173,7 @@ function transformOne(node: QmlNode | string): string {
       while (idx < node.children.length && node.children[idx] !== kids[0]) idx++;
       body = node.children.slice(idx + 1);
     }
-    return box(header, headerBg, transform(body));
+    return box(header, headerBg, transform(body), colorOf(style) || "#ffffff");
   }
   if (node.tag === "div") {
     let inner = transform(node.children);
