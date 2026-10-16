@@ -114,6 +114,7 @@ var WikiDict = function (pairs) {
   var o = {
     _k: [],
     _v: [],
+    size: 0,
     get: function (k) {
       var i = o._k.indexOf(k);
       return i < 0 ? undefined : o._v[i];
@@ -124,6 +125,7 @@ var WikiDict = function (pairs) {
         o._k.push(k);
         o._v.push(v);
       } else o._v[i] = v;
+      o.size = o._k.length;
       return o;
     },
     has: function (k) {
@@ -134,6 +136,7 @@ var WikiDict = function (pairs) {
       if (i < 0) return false;
       o._k.splice(i, 1);
       o._v.splice(i, 1);
+      o.size = o._k.length;
       return true;
     },
     forEach: function (fn, ctx) {
@@ -152,11 +155,6 @@ var WikiDict = function (pairs) {
       return arr;
     },
   };
-  Object.defineProperty(o, "size", {
-    get: function () {
-      return o._k.length;
-    },
-  });
   if (pairs && typeof pairs.length === "number") {
     for (var p = 0; p < pairs.length; p++) {
       if (pairs[p] && pairs[p].length) o.set(pairs[p][0], pairs[p][1]);
@@ -167,8 +165,11 @@ var WikiDict = function (pairs) {
 var WikiBag = function (list) {
   var o = {
     _a: [],
+    size: 0,
+    length: 0,
     add: function (v) {
       if (o._a.indexOf(v) < 0) o._a.push(v);
+      o.size = o.length = o._a.length;
       return o;
     },
     has: function (v) {
@@ -178,6 +179,7 @@ var WikiBag = function (list) {
       var i = o._a.indexOf(v);
       if (i < 0) return false;
       o._a.splice(i, 1);
+      o.size = o.length = o._a.length;
       return true;
     },
     forEach: function (fn, ctx) {
@@ -193,16 +195,6 @@ var WikiBag = function (list) {
       return o._a.slice();
     },
   };
-  Object.defineProperty(o, "size", {
-    get: function () {
-      return o._a.length;
-    },
-  });
-  Object.defineProperty(o, "length", {
-    get: function () {
-      return o._a.length;
-    },
-  });
   if (typeof Symbol !== "undefined" && Symbol.iterator) {
     o[Symbol.iterator] = function () {
       var a = o._a.slice();

@@ -75,7 +75,8 @@ Item {
         var hop = Wiki.engineFollowRedirect(currentTitle)
         if (hop.hops && hop.title !== currentTitle) currentTitle = hop.title
         article = Wiki.engineRenderPage(currentTitle, userKey !== "" && Wiki.engineCanEdit(userKey, currentTitle))
-        pageCount = Wiki.engineStats().pages
+        var stats = Wiki.engineStats()
+        pageCount = stats && stats.pages ? stats.pages : 0
         if (mode === "article" || mode === "missing") mode = article.missing ? "missing" : "article"
     }
 
@@ -205,7 +206,8 @@ Item {
             Wiki.ingestSnapshotEvents(list)
             renderCurrent()
             var pages = Wiki.engineStats().pages
-            if (pages && !quiet) notice = pages + " pages loaded"
+            if (!pages) notice = "Bundled snapshot loaded 0 pages"
+            else if (!quiet) notice = pages + " pages loaded"
             return pages
         } catch (e) {
             notice = "Snapshot load failed: " + e
@@ -402,7 +404,7 @@ Item {
             }
         } catch (e) {}
         resetWiki()
-        loadBundledSnapshot(false)
+        loadBundledSnapshot(true)
         if (userKey) userName = Wiki.engineAccountName(userKey)
         if (!hasLogos) {
             notice = notice || "Running without the Logos bridge. Pages come from the local cache only."
@@ -483,8 +485,8 @@ Item {
 
                 Image {
                     source: "logo.png"
-                    Layout.preferredWidth: 32
-                    Layout.preferredHeight: 32
+                    Layout.preferredWidth: 36
+                    Layout.preferredHeight: 36
                     fillMode: Image.PreserveAspectFit
                     smooth: true
                     mipmap: true
@@ -515,10 +517,15 @@ Item {
                     Layout.preferredHeight: 32
                     placeholderText: "Search or go to"
                     selectByMouse: true
+                    leftPadding: 8
+                    rightPadding: 8
+                    color: root.ink
+                    font.pixelSize: 13
                     onAccepted: root.openTitle(text)
                     background: Rectangle {
                         radius: 2
                         color: root.paper
+                        border.width: 1
                         border.color: searchField.activeFocus ? root.link : root.line
                     }
                 }
@@ -732,8 +739,6 @@ Item {
             }
 
             Item { height: 16 }
-            Text { text: "Delivery: " + root.deliveryStatus; color: root.muted; font.pixelSize: 11 }
-            Text { text: "Storage: " + root.storageStatus; color: root.muted; font.pixelSize: 11 }
             Text { text: root.pageCount + " pages"; color: root.muted; font.pixelSize: 11 }
         }
     }
