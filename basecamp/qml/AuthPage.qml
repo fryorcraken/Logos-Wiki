@@ -145,7 +145,7 @@ Item {
                 id: retype
                 visible: root.creating
                 Layout.fillWidth: true
-                Layout.preferredHeight: visible ? 36 : 0
+                Layout.preferredHeight: 36
                 placeholderText: "Enter password again"
                 echoMode: TextInput.Password
                 selectByMouse: true
