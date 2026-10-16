@@ -90,9 +90,11 @@ export function richText(html: string) {
       const name = decodeURIComponent(String(title).replace(/\+/g, " ")).replace(/_/g, " ");
       return `href="wiki://${encodeURIComponent(name)}${hash || ""}"`;
     })
-    .replace(/href="\/index\.php\?title=([^"&#]+)[^"]*"/g, (_m, title: string) => {
+    .replace(/href="\/index\.php\?title=([^"&#]+)([^"]*)"/g, (_m, title: string, query: string) => {
       const name = decodeURIComponent(String(title).replace(/\+/g, " ")).replace(/_/g, " ");
-      return `href="wiki://${encodeURIComponent(name)}"`;
+      const params = String(query || "").replace(/&amp;/g, "&");
+      const q = !params ? "" : params.charAt(0) === "?" ? params : params.charAt(0) === "&" ? "?" + params.slice(1) : "?" + params;
+      return `href="wiki://${encodeURIComponent(name)}${q}"`;
     });
   return qmlHtml(html);
 }
@@ -145,10 +147,71 @@ export function publishBody(seedHex: string, body: Body, ts?: number): Envelope 
   return sign(hexToBytes(seedHex), body, ts);
 }
 
+export function parseWikiHref(link: string) {
+  const out = { title: "", action: "", section: "", redlink: false };
+  if (!link || link.charAt(0) === "#") return out;
+  let rest = link;
+  if (rest.indexOf("wiki://") === 0) rest = rest.slice("wiki://".length);
+  else if (rest.indexOf("/wiki/") === 0) rest = rest.slice("/wiki/".length);
+  const qpos = rest.indexOf("?");
+  const hpos = rest.indexOf("#");
+  let path = rest;
+  let query = "";
+  if (qpos >= 0 && (hpos < 0 || qpos < hpos)) {
+    path = rest.slice(0, qpos);
+    query = hpos > qpos ? rest.slice(qpos + 1, hpos) : rest.slice(qpos + 1);
+  } else if (hpos >= 0) path = rest.slice(0, hpos);
+  try {
+    path = decodeURIComponent(path.replace(/\+/g, " ")).replace(/_/g, " ");
+  } catch (_e) {
+    path = path.replace(/\+/g, " ").replace(/_/g, " ");
+  }
+  if (path.indexOf("title=") === 0) {
+    query = path + (query ? "&" + query : "");
+    path = "";
+  }
+  const parts = query.replace(/&amp;/g, "&").split("&");
+  for (let i = 0; i < parts.length; i++) {
+    const eq = parts[i].indexOf("=");
+    const key = eq < 0 ? parts[i] : parts[i].slice(0, eq);
+    let value = eq < 0 ? "" : parts[i].slice(eq + 1);
+    try {
+      value = decodeURIComponent(value.replace(/\+/g, " "));
+    } catch (_e) {}
+    if (key === "title") path = value.replace(/_/g, " ");
+    if (key === "action") out.action = value;
+    if (key === "section") out.section = value;
+    if (key === "redlink" && (value === "1" || value === "true")) out.redlink = true;
+  }
+  const parsed = path ? parseTitle(path) : null;
+  out.title = parsed ? parsed.full : path;
+  return out;
+}
+
 export function parseWikiLink(link: string) {
-  if (link.startsWith("wiki://")) return decodeURIComponent(link.slice("wiki://".length).split("#")[0]);
-  if (link.startsWith("#")) return "";
-  return link;
+  return parseWikiHref(link).title;
+}
+
+export function engineDiff(before: string, after: string) {
+  const rows = diffRows(before || "", after || "")
+    .replace(/<del\b[^>]*>/gi, '<font color="#8f0000">')
+    .replace(/<\/del>/gi, "</font>")
+    .replace(/<ins\b[^>]*>/gi, '<font color="#006400">')
+    .replace(/<\/ins>/gi, "</font>");
+  return `<table width="100%" cellspacing="0" cellpadding="4" border="1" bordercolor="#a2a9b1">${rows}</table>`;
+}
+
+export function engineIsAdmin(key: string) {
+  return !!(key && session.admin && key.toLowerCase() === session.admin);
+}
+
+export function normalizeUsername(raw: string) {
+  const s = String(raw || "")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!s) return "";
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 export function followRedirect(wiki: Wiki, rawTitle: string) {

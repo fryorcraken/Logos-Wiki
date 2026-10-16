@@ -223,7 +223,12 @@ export class Wiki {
 
   private applyTrust(event: Extract<Verified, { t: "trust" }>) {
     if (event.by !== this.admin || !Array.isArray(event.editors) || event.editors.length > 1000) return false;
-    this.trusted = [...new Set(event.editors.map(validUsername).filter((n): n is string => !!n))];
+    const names: string[] = [];
+    for (let i = 0; i < event.editors.length; i++) {
+      const n = validUsername(event.editors[i]);
+      if (n && names.indexOf(n) < 0) names.push(n);
+    }
+    this.trusted = names;
     return true;
   }
 

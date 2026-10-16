@@ -34,11 +34,23 @@ Item {
     readonly property color wash: "#f8f9fa"
     readonly property color header: "#eaecf0"
     property var tocItems: []
+    property var tabModel: []
+    property string editSection: ""
+    property string pendingAuth: ""
+    property string pendingName: ""
+    property string pendingPassword: ""
+    property bool pendingRemember: false
     readonly property bool showToc: mode === "article" && tocItems && tocItems.length >= 4
+    readonly property bool isAdmin: userKey !== "" && adminKey !== "" && userKey.toLowerCase() === adminKey.toLowerCase()
     readonly property string headingText: {
         if (mode === "login") return "Log in"
         if (mode === "create") return "Create account"
         if (mode === "account") return userName ? userName : "Account"
+        if (mode === "edit" || mode === "source") {
+            var verb = (article && article.missing) ? "Creating" : (mode === "source" ? "View source for" : "Editing")
+            var suffix = editSection === "new" ? " (new section)" : (editSection ? " (section)" : "")
+            return verb + " " + currentTitle + suffix
+        }
         if (currentTitle === "Special:RecentChanges") return "Recent changes"
         if (currentTitle === "Special:AllPages") return "All pages"
         if (currentTitle === "Special:SpecialPages") return "Special pages"
@@ -46,7 +58,7 @@ Item {
         if (currentTitle === "Special:TrustedEditors") return "Trusted editors"
         return currentTitle
     }
-    readonly property bool showTabs: mode !== "login" && mode !== "create" && mode !== "account" && mode !== "special" && !/^Special:/i.test(currentTitle)
+    readonly property bool showTabs: tabModel && tabModel.length && mode !== "login" && mode !== "create" && mode !== "account" && mode !== "special" && !/^Special:/i.test(currentTitle)
 
     function db() {
         return LocalStorage.openDatabaseSync("logos-wiki", "1.0", "Logos Wiki cache", 10 * 1024 * 1024)
@@ -93,11 +105,72 @@ Item {
         var stats = Wiki.engineStats()
         pageCount = stats && stats.pages ? stats.pages : 0
         if (mode === "article" || mode === "missing") mode = article.missing ? "missing" : "article"
+        refreshTabs()
         scrollArticleTop()
+    }
+
+    function refreshTabs() {
+        var exists = !(article && article.missing)
+        var can = userKey !== "" && Wiki.engineCanEdit(userKey, currentTitle)
+        var tabs = []
+        if (exists) tabs.push({ label: "Read", mode: "article" })
+        if (can) tabs.push({ label: exists ? "Edit" : "Create", mode: "edit" })
+        else if (exists) tabs.push({ label: "View source", mode: "source" })
+        if (exists) tabs.push({ label: "View history", mode: "history" })
+        tabModel = tabs
+    }
+
+    function beginEdit(section) {
+        if (!userKey) {
+            mode = "login"
+            notice = "Log in to edit."
+            return
+        }
+        if (!Wiki.engineCanEdit(userKey, currentTitle)) {
+            if (article && !article.missing) mode = "source"
+            else notice = "You do not have permission to create this page."
+            refreshTabs()
+            return
+        }
+        editSection = section || ""
+        mode = "edit"
+        refreshTabs()
+    }
+
+    function editSource() {
+        var full = (article && article.source) ? article.source : (Wiki.engineLatestText(currentTitle) || "")
+        if (!editSection) return full
+        if (editSection === "new") return ""
+        var piece = Wiki.sectionText(full, Number(editSection))
+        return piece === null ? full : piece
+    }
+
+    function editSummarySeed() {
+        if (!editSection || editSection === "new") return ""
+        var src = editSource()
+        var heading = /^(=+)\s*(.*?)\s*\1/.exec(src)
+        return heading ? "/* " + heading[2] + " */ " : ""
     }
 
     function openTitle(title) {
         if (!title) return
+        var parsed = Wiki.parseTitle(title)
+        if (parsed) title = parsed.full
+        if (/^Special:UserLogin$/i.test(title)) {
+            currentTitle = title
+            mode = userName ? "account" : "login"
+            return
+        }
+        if (/^Special:CreateAccount$/i.test(title)) {
+            currentTitle = title
+            mode = userName ? "account" : "create"
+            return
+        }
+        if (/^Special:UserLogout$/i.test(title)) {
+            currentTitle = title
+            mode = "account"
+            return
+        }
         if (title === "Special:Random") {
             var titles = Wiki.engineTitles()
             if (!titles.length) {
@@ -143,8 +216,10 @@ Item {
             notice = "Open in a browser: " + link
             return
         }
-        var title = Wiki.parseWikiLink(link)
-        if (title) openTitle(title)
+        var href = Wiki.parseWikiHref(link)
+        if (!href || !href.title) return
+        openTitle(href.title)
+        if (href.action === "edit") beginEdit(href.section || "")
     }
 
     function parseResult(payload) {
@@ -339,51 +414,73 @@ Item {
         userName = Wiki.engineAccountName(userKey)
         if (remember) kvSet("session", JSON.stringify({ seedHex: seedHex, name: name }))
         else kvSet("session", "")
-        if (created) {
-            userName = userName || name
-            notice = "Account created"
-            mode = "article"
+        if (created && !userName) {
+            notice = "Could not create the account."
+            userName = ""
+            userKey = ""
+            seedHex = ""
             return
         }
-        if (userName && userName !== name) notice = "This password belongs to " + userName
-        else if (!userName) notice = "No account for this name and password. Create one?"
-        else {
-            notice = "Signed in as " + userName
-            mode = "article"
+        if (!created && userName !== name) {
+            notice = "Incorrect username or password entered. Please try again."
+            userName = ""
+            userKey = ""
+            seedHex = ""
+            return
         }
+        notice = created ? "Account created" : ("Signed in as " + userName)
+        if (/^Special:(UserLogin|CreateAccount|UserLogout)$/i.test(currentTitle)) currentTitle = Wiki.MAIN_PAGE
+        mode = "article"
+        renderCurrent()
     }
 
     function login(name, password, remember) {
-        busyText = "Deriving key…"
-        try {
-            applySession(Wiki.deriveSeed(name, password), name, remember, false)
-        } catch (err) {
-            notice = String(err)
-        }
-        busyText = ""
+        pendingAuth = "login"
+        pendingName = Wiki.normalizeUsername(name)
+        pendingPassword = password
+        pendingRemember = remember
+        busyText = "Please wait…"
+        authTimer.restart()
     }
 
     function createAccount(name, password, remember) {
-        var valid = Wiki.validUsername(name)
-        if (!valid || valid !== name) {
-            notice = "Use a MediaWiki user name, without a User: prefix."
+        var normalized = Wiki.normalizeUsername(name)
+        var valid = Wiki.validUsername(normalized)
+        if (!valid) {
+            notice = "The username is invalid."
             return
         }
-        busyText = "Deriving key…"
+        if (!password || password.length < 10) {
+            notice = "Passwords must be at least 10 characters."
+            return
+        }
+        pendingAuth = "create"
+        pendingName = valid
+        pendingPassword = password
+        pendingRemember = !!remember
+        busyText = "Please wait…"
+        authTimer.restart()
+    }
+
+    function finishAuth() {
         try {
-            var seed = Wiki.deriveSeed(name, password)
-            userKey = Wiki.publicKey(seed)
-            if (Wiki.engineAccountTaken(userKey, name)) {
-                notice = "That account already exists. Log in instead."
-                busyText = ""
-                return
-            }
-            sendEnvelope(Wiki.sign(seed, { t: "account", name: name }), "Account created")
-            applySession(seed, name, remember, true)
+            var seed = Wiki.deriveSeed(pendingName, pendingPassword)
+            if (pendingAuth === "create") {
+                var key = Wiki.publicKey(seed)
+                if (Wiki.engineAccountTaken(key, pendingName)) {
+                    notice = "Username entered already in use. Please choose a different name."
+                    busyText = ""
+                    return
+                }
+                sendEnvelope(Wiki.sign(seed, { t: "account", name: pendingName }), "Account created")
+                applySession(seed, pendingName, pendingRemember, true)
+            } else applySession(seed, pendingName, pendingRemember, false)
         } catch (err) {
             notice = String(err)
         }
         busyText = ""
+        pendingAuth = ""
+        pendingPassword = ""
     }
 
     function logout() {
@@ -391,7 +488,9 @@ Item {
         userKey = ""
         seedHex = ""
         kvSet("session", "")
-        notice = "Signed out"
+        notice = "You are now logged out."
+        mode = "account"
+        refreshTabs()
     }
 
     function saveSettings(nextAdmin, nextSnapshot) {
@@ -406,19 +505,56 @@ Item {
         mode = "article"
     }
 
-    function publishEdit(title, text, summary) {
+    function publishEdit(title, text, summary, minor) {
         if (!seedHex) {
             mode = "login"
             notice = "Log in to edit."
             return
         }
-        if (!Wiki.engineCanEdit(userKey, title)) {
-            notice = "You cannot edit this page."
+        var parsed = Wiki.parseTitle(title)
+        if (!parsed || parsed.ns < 0) {
+            notice = "The page title is invalid."
             return
         }
-        sendEnvelope(Wiki.publishBody(seedHex, { t: "edit", title: title, text: text, summary: summary || "" }), "Edit published")
+        title = parsed.full
+        if (!Wiki.engineCanEdit(userKey, title)) {
+            notice = "You do not have permission to edit this page."
+            return
+        }
+        var original = Wiki.engineLatestText(title) || ""
+        var full = text
+        var summaryText = summary || ""
+        if (editSection === "new") {
+            var heading = String(summary || "").trim()
+            full = Wiki.appendSection(original, heading, text)
+            summaryText = heading ? ("/* " + heading + " */ new section") : summaryText
+        } else if (editSection) full = Wiki.replaceSection(original, Number(editSection), text)
+        if (full === null) {
+            notice = "The section you are editing could not be found."
+            return
+        }
+        var body = { t: "edit", title: title, text: full, summary: summaryText }
+        if (minor) body.minor = true
+        var created = !Wiki.enginePageExists(title)
+        sendEnvelope(Wiki.publishBody(seedHex, body), created ? "Page created" : "Edit published")
+        editSection = ""
         currentTitle = title
         mode = "article"
+        renderCurrent()
+    }
+
+    function publishTrust(text) {
+        if (!seedHex || !Wiki.engineIsAdmin(userKey)) {
+            notice = "Only the administrator can change the trusted editors list."
+            return
+        }
+        var lines = String(text || "").split("\n")
+        var names = []
+        for (var i = 0; i < lines.length; i++) {
+            var n = Wiki.validUsername(Wiki.normalizeUsername(lines[i]))
+            if (n && names.indexOf(n) < 0) names.push(n)
+        }
+        sendEnvelope(Wiki.publishBody(seedHex, { t: "trust", editors: names }), "Trusted editors saved")
         renderCurrent()
     }
 
@@ -460,6 +596,13 @@ Item {
                 logos.respond(requestId, true, {}, "")
             }
         }
+    }
+
+    Timer {
+        id: authTimer
+        interval: 40
+        repeat: false
+        onTriggered: root.finishAuth()
     }
 
     Component.onCompleted: boot()
@@ -552,7 +695,7 @@ Item {
                     rightPadding: 8
                     color: root.ink
                     font.pixelSize: 13
-                    onAccepted: root.openTitle(text)
+                    onAccepted: if (text) root.openTitle(text)
                     background: Rectangle {
                         radius: 2
                         color: root.paper
@@ -562,7 +705,7 @@ Item {
                 }
                 WikiButton {
                     text: "Search"
-                    onClicked: root.openTitle(searchField.text)
+                    onClicked: if (searchField.text) root.openTitle(searchField.text)
                 }
             }
         }
@@ -685,11 +828,7 @@ Item {
                             anchors.bottom: parent.bottom
                             height: 40
                             Repeater {
-                                model: [
-                                    { label: "Read", mode: "article" },
-                                    { label: "Edit", mode: "edit" },
-                                    { label: "History", mode: "history" }
-                                ]
+                                model: root.tabModel
                                 Item {
                                     width: tabLabel.implicitWidth + 24
                                     height: 40
@@ -712,6 +851,7 @@ Item {
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
                                             if (modelData.mode === "article") {
+                                                root.editSection = ""
                                                 root.mode = "article"
                                                 root.renderCurrent()
                                                 return
@@ -720,16 +860,12 @@ Item {
                                                 root.mode = "history"
                                                 return
                                             }
-                                            if (!root.userKey) {
-                                                root.mode = "login"
-                                                root.notice = "Log in to edit."
+                                            if (modelData.mode === "source") {
+                                                root.editSection = ""
+                                                root.mode = "source"
                                                 return
                                             }
-                                            if (!Wiki.engineCanEdit(root.userKey, root.currentTitle)) {
-                                                root.notice = "You cannot edit this page."
-                                                return
-                                            }
-                                            root.mode = "edit"
+                                            root.beginEdit("")
                                         }
                                     }
                                 }
@@ -743,7 +879,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         sourceComponent: {
-                            if (root.mode === "edit") return editPage
+                            if (root.mode === "edit" || root.mode === "source") return editPage
                             if (root.mode === "history") return historyPage
                             if (root.mode === "login" || root.mode === "create") return authPage
                             if (root.mode === "account") return accountPage
@@ -869,7 +1005,35 @@ Item {
                 x: 20
                 y: 12
                 spacing: 16
+                Column {
+                    visible: root.article && root.article.missing
+                    width: parent.width
+                    spacing: 10
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        font.pixelSize: 16
+                        color: root.ink
+                        text: "There is currently no text in this page."
+                    }
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.Wrap
+                        font.pixelSize: 16
+                        color: root.ink
+                        text: root.userKey && Wiki.engineCanEdit(root.userKey, root.currentTitle)
+                              ? "You can search for this page title in other pages, or create this page."
+                              : "You can search for this page title in other pages, but you do not have permission to create this page."
+                    }
+                    WikiButton {
+                        visible: root.userKey && Wiki.engineCanEdit(root.userKey, root.currentTitle)
+                        primary: true
+                        text: "Create this page"
+                        onClicked: root.beginEdit("")
+                    }
+                }
                 Text {
+                    visible: !(root.article && root.article.missing)
                     width: parent.width
                     wrapMode: Text.Wrap
                     textFormat: Text.RichText
@@ -909,12 +1073,25 @@ Item {
         id: editPage
         EditPage {
             pageTitle: root.currentTitle
-            source: root.article && root.article.source ? root.article.source : ""
+            source: root.editSource()
+            summarySeed: root.editSummarySeed()
+            creating: !!(root.article && root.article.missing)
+            sectionNew: root.editSection === "new"
+            readOnly: root.mode === "source"
             previewFn: function (text) {
                 return Wiki.enginePreview(root.currentTitle, text)
             }
-            onCancelled: { root.mode = "article"; root.renderCurrent() }
-            onPublished: root.publishEdit(root.currentTitle, text, summary)
+            diffFn: function (text, summary) {
+                var original = Wiki.engineLatestText(root.currentTitle) || ""
+                var full = text
+                if (root.editSection === "new") full = Wiki.appendSection(original, summary, text)
+                else if (root.editSection) full = Wiki.replaceSection(original, Number(root.editSection), text)
+                if (full === null) full = text
+                return Wiki.engineDiff(original, full)
+            }
+            onCancelled: { root.editSection = ""; root.mode = "article"; root.renderCurrent() }
+            onPublished: root.publishEdit(root.currentTitle, text, summary, minor)
+            onOpenUrl: root.openLink(url)
         }
     }
 
@@ -929,9 +1106,12 @@ Item {
         id: authPage
         AuthPage {
             creating: root.mode === "create"
+            busy: root.busyText === "Please wait…"
+            sitename: Wiki.SITENAME
             onLoginRequested: root.login(name, password, remember)
             onCreateRequested: root.createAccount(name, password, remember)
             onSwitchMode: root.mode = root.mode === "create" ? "login" : "create"
+            onOpenUrl: root.openLink(url)
         }
     }
 
@@ -946,8 +1126,18 @@ Item {
                 y: 12
                 width: parent.width - 40
                 spacing: 12
-                Text { text: "Key: " + root.userKey; font.pixelSize: 13; color: root.muted; wrapMode: Text.Wrap; width: parent.width }
-                WikiButton { text: "Log out"; onClicked: { root.logout(); root.mode = "article" } }
+                Text {
+                    width: parent.width
+                    wrapMode: Text.Wrap
+                    font.pixelSize: 16
+                    color: root.ink
+                    text: root.userName ? "Do you want to log out?" : "You are now logged out."
+                }
+                WikiButton {
+                    visible: root.userName !== ""
+                    text: "Log out"
+                    onClicked: root.logout()
+                }
             }
         }
     }
@@ -958,8 +1148,10 @@ Item {
             title: root.currentTitle
             adminKey: root.adminKey
             snapshotCid: root.snapshotCid
+            isAdmin: root.isAdmin
             onOpenTitle: root.openTitle(name)
             onSaveSettings: root.saveSettings(nextAdmin, nextSnapshot)
+            onSaveTrusted: root.publishTrust(editors)
         }
     }
 }

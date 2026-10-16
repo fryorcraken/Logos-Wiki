@@ -8,8 +8,10 @@ Flickable {
     property string title: ""
     property string adminKey: ""
     property string snapshotCid: ""
+    property bool isAdmin: false
     signal openTitle(string name)
     signal saveSettings(string nextAdmin, string nextSnapshot)
+    signal saveTrusted(string editors)
 
     clip: true
     contentHeight: body.implicitHeight + 40
@@ -46,9 +48,17 @@ Flickable {
             width: parent.width
             wrapMode: Text.Wrap
             color: "#54595d"
-            text: (Wiki.engineTrusted().length)
-                  ? "These users may edit every page except the MediaWiki namespace."
-                  : "No trusted editors yet. Trust events are signed by the admin key."
+            font.pixelSize: 15
+            text: "Trusted editors can edit every page except those in the MediaWiki namespace, and can upload files. Other registered users can edit their own user and user talk pages. Only the administrator can change this list."
+        }
+
+        Text {
+            visible: title === "Special:TrustedEditors" && !(Wiki.engineTrusted() || []).length && !root.isAdmin
+            width: parent.width
+            wrapMode: Text.Wrap
+            color: "#54595d"
+            font.pixelSize: 14
+            text: "There are no trusted editors yet."
         }
 
         Repeater {
@@ -102,6 +112,39 @@ Flickable {
                 primary: true
                 text: "Save"
                 onClicked: root.saveSettings(adminField.text.trim(), cidField.text.trim())
+            }
+        }
+
+        Column {
+            visible: title === "Special:TrustedEditors" && root.isAdmin
+            width: parent.width
+            spacing: 8
+            Text {
+                text: "Edit the list of trusted editors"
+                font.pixelSize: 16
+                font.bold: true
+                color: "#202122"
+            }
+            Text {
+                width: parent.width
+                wrapMode: Text.Wrap
+                color: "#54595d"
+                font.pixelSize: 14
+                text: "One username per line. Trusted editors can edit every page outside the MediaWiki namespace and upload files."
+            }
+            TextArea {
+                id: editorsField
+                width: parent.width
+                height: 180
+                wrapMode: TextArea.Wrap
+                selectByMouse: true
+                font.family: "monospace"
+                text: (Wiki.engineTrusted() || []).join("\n")
+            }
+            WikiButton {
+                primary: true
+                text: "Save trusted editors"
+                onClicked: root.saveTrusted(editorsField.text)
             }
         }
     }

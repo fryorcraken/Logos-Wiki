@@ -101,6 +101,11 @@ function transformOne(node: QmlNode | string): string {
     const size = node.tag === "h1" ? "6" : node.tag === "h2" ? "5" : node.tag === "h3" ? "4" : "3";
     return `<p><font size="${size}"><b>${inner}</b></font></p>`;
   }
+  if (node.tag === "a") {
+    const inner = transform(node.children);
+    const colored = /\bnew\b/.test(node.attrs) ? `<font color="#ba0000">${inner}</font>` : inner;
+    return `<a${node.attrs}>${colored}</a>`;
+  }
   if (node.tag === "div" && isFlex(style)) {
     const cols = elements(node);
     let cells = "";

@@ -2522,8 +2522,10 @@ var WikiBag = function (list) {
     engineAccountName: () => engineAccountName,
     engineAccountTaken: () => engineAccountTaken,
     engineCanEdit: () => engineCanEdit,
+    engineDiff: () => engineDiff,
     engineFollowRedirect: () => engineFollowRedirect,
     engineHas: () => engineHas,
+    engineIsAdmin: () => engineIsAdmin,
     engineLatestText: () => engineLatestText,
     enginePageExists: () => enginePageExists,
     enginePreview: () => enginePreview,
@@ -2545,8 +2547,10 @@ var WikiBag = function (list) {
     ingestSnapshotEvents: () => ingestSnapshotEvents,
     joinBase64Chunks: () => joinBase64Chunks,
     latestText: () => latestText,
+    normalizeUsername: () => normalizeUsername,
     pageTitles: () => pageTitles,
     parseTitle: () => parseTitle,
+    parseWikiHref: () => parseWikiHref,
     parseWikiLink: () => parseWikiLink,
     publicKey: () => publicKey,
     publishBody: () => publishBody,
@@ -3588,7 +3592,12 @@ var WikiBag = function (list) {
     }
     applyTrust(event) {
       if (event.by !== this.admin || !Array.isArray(event.editors) || event.editors.length > 1e3) return false;
-      this.trusted = [...new WikiBag(event.editors.map(validUsername).filter((n) => !!n))];
+      const names = [];
+      for (let i = 0; i < event.editors.length; i++) {
+        const n = validUsername(event.editors[i]);
+        if (n && names.indexOf(n) < 0) names.push(n);
+      }
+      this.trusted = names;
       return true;
     }
     applyFile(event) {
@@ -4553,6 +4562,11 @@ ${body.trim()}`;
       const size = node.tag === "h1" ? "6" : node.tag === "h2" ? "5" : node.tag === "h3" ? "4" : "3";
       return `<p><font size="${size}"><b>${inner2}</b></font></p>`;
     }
+    if (node.tag === "a") {
+      const inner2 = transform(node.children);
+      const colored = /\bnew\b/.test(node.attrs) ? `<font color="#ba0000">${inner2}</font>` : inner2;
+      return `<a${node.attrs}>${colored}</a>`;
+    }
     if (node.tag === "div" && isFlex(style)) {
       const cols = elements(node);
       let cells = "";
@@ -4643,9 +4657,11 @@ ${body.trim()}`;
     }).replace(/href="\/wiki\/([^"#]*)(#[^"]*)?"/g, (_m, title, hash = "") => {
       const name = decodeURIComponent(String(title).replace(/\+/g, " ")).replace(/_/g, " ");
       return `href="wiki://${encodeURIComponent(name)}${hash || ""}"`;
-    }).replace(/href="\/index\.php\?title=([^"&#]+)[^"]*"/g, (_m, title) => {
+    }).replace(/href="\/index\.php\?title=([^"&#]+)([^"]*)"/g, (_m, title, query) => {
       const name = decodeURIComponent(String(title).replace(/\+/g, " ")).replace(/_/g, " ");
-      return `href="wiki://${encodeURIComponent(name)}"`;
+      const params = String(query || "").replace(/&amp;/g, "&");
+      const q = !params ? "" : params.charAt(0) === "?" ? params : params.charAt(0) === "&" ? "?" + params.slice(1) : "?" + params;
+      return `href="wiki://${encodeURIComponent(name)}${q}"`;
     });
     return qmlHtml(html);
   }
@@ -4687,10 +4703,61 @@ ${body.trim()}`;
   function publishBody(seedHex, body, ts) {
     return sign(hexToBytes2(seedHex), body, ts);
   }
+  function parseWikiHref(link) {
+    const out = { title: "", action: "", section: "", redlink: false };
+    if (!link || link.charAt(0) === "#") return out;
+    let rest = link;
+    if (rest.indexOf("wiki://") === 0) rest = rest.slice("wiki://".length);
+    else if (rest.indexOf("/wiki/") === 0) rest = rest.slice("/wiki/".length);
+    const qpos = rest.indexOf("?");
+    const hpos = rest.indexOf("#");
+    let path = rest;
+    let query = "";
+    if (qpos >= 0 && (hpos < 0 || qpos < hpos)) {
+      path = rest.slice(0, qpos);
+      query = hpos > qpos ? rest.slice(qpos + 1, hpos) : rest.slice(qpos + 1);
+    } else if (hpos >= 0) path = rest.slice(0, hpos);
+    try {
+      path = decodeURIComponent(path.replace(/\+/g, " ")).replace(/_/g, " ");
+    } catch (_e) {
+      path = path.replace(/\+/g, " ").replace(/_/g, " ");
+    }
+    if (path.indexOf("title=") === 0) {
+      query = path + (query ? "&" + query : "");
+      path = "";
+    }
+    const parts = query.replace(/&amp;/g, "&").split("&");
+    for (let i = 0; i < parts.length; i++) {
+      const eq = parts[i].indexOf("=");
+      const key = eq < 0 ? parts[i] : parts[i].slice(0, eq);
+      let value = eq < 0 ? "" : parts[i].slice(eq + 1);
+      try {
+        value = decodeURIComponent(value.replace(/\+/g, " "));
+      } catch (_e) {
+      }
+      if (key === "title") path = value.replace(/_/g, " ");
+      if (key === "action") out.action = value;
+      if (key === "section") out.section = value;
+      if (key === "redlink" && (value === "1" || value === "true")) out.redlink = true;
+    }
+    const parsed = path ? parseTitle(path) : null;
+    out.title = parsed ? parsed.full : path;
+    return out;
+  }
   function parseWikiLink(link) {
-    if (link.startsWith("wiki://")) return decodeURIComponent(link.slice("wiki://".length).split("#")[0]);
-    if (link.startsWith("#")) return "";
-    return link;
+    return parseWikiHref(link).title;
+  }
+  function engineDiff(before, after) {
+    const rows = diffRows(before || "", after || "").replace(/<del\b[^>]*>/gi, '<font color="#8f0000">').replace(/<\/del>/gi, "</font>").replace(/<ins\b[^>]*>/gi, '<font color="#006400">').replace(/<\/ins>/gi, "</font>");
+    return `<table width="100%" cellspacing="0" cellpadding="4" border="1" bordercolor="#a2a9b1">${rows}</table>`;
+  }
+  function engineIsAdmin(key) {
+    return !!(key && session.admin && key.toLowerCase() === session.admin);
+  }
+  function normalizeUsername(raw) {
+    const s = String(raw || "").replace(/_/g, " ").replace(/\s+/g, " ").trim();
+    if (!s) return "";
+    return s.charAt(0).toUpperCase() + s.slice(1);
   }
   function followRedirect(wiki, rawTitle) {
     const page = renderPage(wiki, rawTitle);
@@ -4794,6 +4861,9 @@ var enginePageExists = WikiEngine.enginePageExists;
 var engineLatestText = WikiEngine.engineLatestText;
 var engineFollowRedirect = WikiEngine.engineFollowRedirect;
 var enginePreview = WikiEngine.enginePreview;
+var engineDiff = WikiEngine.engineDiff;
+var engineIsAdmin = WikiEngine.engineIsAdmin;
+var normalizeUsername = WikiEngine.normalizeUsername;
 var latestText = WikiEngine.latestText;
 var richText = WikiEngine.richText;
 var renderPage = WikiEngine.renderPage;
@@ -4802,6 +4872,7 @@ var recent = WikiEngine.recent;
 var accountName = WikiEngine.accountName;
 var canEditPage = WikiEngine.canEditPage;
 var publishBody = WikiEngine.publishBody;
+var parseWikiHref = WikiEngine.parseWikiHref;
 var parseWikiLink = WikiEngine.parseWikiLink;
 var followRedirect = WikiEngine.followRedirect;
 var appendSection = WikiEngine.appendSection;
