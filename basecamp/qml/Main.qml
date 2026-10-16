@@ -494,6 +494,7 @@ Item {
             return
         }
         authError = ""
+        authNotice = ""
         pendingAuth = "create"
         pendingName = valid
         pendingPassword = password
