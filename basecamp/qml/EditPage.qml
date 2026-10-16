@@ -21,6 +21,8 @@ Item {
     property string error: ""
     property bool busy: false
 
+    onSourceChanged: if (editor) editor.text = source
+
     function showPanel(kind) {
         if (root.readOnly || !kind) return
         root.busy = true
@@ -103,10 +105,10 @@ Item {
             Layout.fillHeight: true
             wrapMode: TextArea.Wrap
             selectByMouse: true
-            text: root.source
             readOnly: root.readOnly
             font.family: "monospace"
             font.pixelSize: 13
+            Component.onCompleted: text = root.source
         }
 
         Text {
