@@ -1,0 +1,14 @@
+{
+  "name": "logos-wiki-basecamp",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node js/build.mjs",
+    "pack": "node js/build.mjs && node pack.mjs",
+    "test": "node js/build.mjs && node --experimental-strip-types --test tests/*.test.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.11",
+    "tweetnacl": "^1.0.3"
+  }
+}

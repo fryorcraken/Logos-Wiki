@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "name": "logos-wiki",
+  "displayName": "Logos Wiki",
+  "description": "Native Basecamp app for the Logos Wiki.",
+  "homepage": "https://github.com/uNexpectedR/Logos-Wiki",
+  "indexUrl": "https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/basecamp/index.json",
+  "trustedSigners": []
+}

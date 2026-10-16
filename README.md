@@ -55,6 +55,16 @@ npm run lint
 npx tsc --noEmit
 ```
 
+## Basecamp
+
+A native QML app lives in [`basecamp/`](basecamp/). In Basecamp 0.3.2 Package Manager, add repository:
+
+```
+https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/basecamp/logos-repo.json
+```
+
+then install **Logos Wiki**. See [basecamp/README.md](basecamp/README.md) for the local `.lgx` fallback, settings (admin key / snapshot CID), and how to pack a release.
+
 ## License
 
 Apache-2.0. The skin assets are third-party; see [NOTICE](NOTICE).
