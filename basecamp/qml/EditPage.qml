@@ -161,7 +161,7 @@ Item {
                 textFormat: Text.RichText
                 font.pixelSize: 13
                 text: '<a href="https://www.mediawiki.org/wiki/Special:MyLanguage/Help:Editing_pages">Editing help</a>'
-                onLinkActivated: root.openUrl(link)
+                onLinkActivated: function (link) { root.openUrl(link) }
             }
         }
     }

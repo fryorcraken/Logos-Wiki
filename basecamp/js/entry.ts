@@ -201,10 +201,6 @@ export function engineDiff(before: string, after: string) {
   return `<table width="100%" cellspacing="0" cellpadding="4" border="1" bordercolor="#a2a9b1">${rows}</table>`;
 }
 
-export function engineIsAdmin(key: string) {
-  return !!(key && session.admin && key.toLowerCase() === session.admin);
-}
-
 export function normalizeUsername(raw: string) {
   const s = String(raw || "")
     .replace(/_/g, " ")
@@ -225,6 +221,15 @@ let session = new Wiki("");
 
 export function resetEngine(admin: string) {
   session = new Wiki((admin || "").toLowerCase());
+}
+
+export function engineIsAdmin(key: string) {
+  return !!(key && session.admin && key.toLowerCase() === session.admin);
+}
+
+export function engineAuth(name: string, password: string) {
+  const seed = deriveSeed(name, password);
+  return { seedHex: bytesToHex(seed), key: publicKey(seed) };
 }
 
 export function ingestEnvelope(envelope: unknown) {

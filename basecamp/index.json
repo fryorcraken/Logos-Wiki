@@ -1,23 +1,23 @@
 {
   "schemaVersion": 2,
   "repositoryName": "logos-wiki",
-  "generatedAt": "2026-10-16T12:37:56.504Z",
+  "generatedAt": "2026-10-16T12:49:34.552Z",
   "latest": "0.1.3",
   "packages": [
     {
       "name": "logos-wiki",
       "versions": [
         {
-          "releasedAt": "2026-10-16T12:37:56.504Z",
+          "releasedAt": "2026-10-16T12:49:34.552Z",
           "publisherRef": "basecamp-v0.1.3",
           "url": "https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/basecamp/dist/logos-wiki-0.1.3.lgx",
           "urls": [
             "https://raw.githubusercontent.com/uNexpectedR/Logos-Wiki/main/basecamp/dist/logos-wiki-0.1.3.lgx",
             "https://github.com/uNexpectedR/Logos-Wiki/releases/download/basecamp-v0.1.3/logos-wiki-0.1.3.lgx"
           ],
-          "size": 988049,
-          "sha256": "56ab037520b3f8acbac43d90ceb3c7a19edcbaeb3c5a5c7866935dfc5c266ed6",
-          "rootHash": "123183745df082d20dc6e100151ca87a85dff013f13ee5b019651dd52dbdba7d",
+          "size": 988321,
+          "sha256": "fe44326e922e7c99c170f5a6ed70bf2f240a289459cfb602f5ad87b142c3ac82",
+          "rootHash": "f4412e7c70778a0eb672595ac53703e0dae30f118cf350baabb0b46ba5de8baa",
           "manifest": {
             "author": "Logos Wiki",
             "category": "apps",
@@ -29,12 +29,12 @@
             "display_name": "Logos Wiki",
             "hashes": {
               "assets": "30446e485d5321449209c40d62776bfef8fcf5fa94a06bf5a11d60f37841dafb",
-              "root": "123183745df082d20dc6e100151ca87a85dff013f13ee5b019651dd52dbdba7d",
-              "variants": "4143c073cdc0798577c2f6bd80cd28689fe550bca7a13454fe5129b073d9a714",
-              "variants/darwin-arm64": "60032373bcaecb4f27aed60b1af98aae43e66896694f020b9d9b33c93b2dc638",
-              "variants/linux-amd64": "60032373bcaecb4f27aed60b1af98aae43e66896694f020b9d9b33c93b2dc638",
-              "variants/linux-arm64": "60032373bcaecb4f27aed60b1af98aae43e66896694f020b9d9b33c93b2dc638",
-              "variants/windows-x86_64": "60032373bcaecb4f27aed60b1af98aae43e66896694f020b9d9b33c93b2dc638"
+              "root": "f4412e7c70778a0eb672595ac53703e0dae30f118cf350baabb0b46ba5de8baa",
+              "variants": "faf21113f469133a521cfcff87219c03c70ca2dcafd23c9e6ef5c0ff53f96234",
+              "variants/darwin-arm64": "9e9c6494f83a798f8c3d0dd3b6444bb21f06afd5db6380dfd59da3ca3b11d269",
+              "variants/linux-amd64": "9e9c6494f83a798f8c3d0dd3b6444bb21f06afd5db6380dfd59da3ca3b11d269",
+              "variants/linux-arm64": "9e9c6494f83a798f8c3d0dd3b6444bb21f06afd5db6380dfd59da3ca3b11d269",
+              "variants/windows-x86_64": "9e9c6494f83a798f8c3d0dd3b6444bb21f06afd5db6380dfd59da3ca3b11d269"
             },
             "icon": "assets/icon.png",
             "main": {

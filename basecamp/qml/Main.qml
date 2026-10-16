@@ -408,20 +408,14 @@ Item {
         })
     }
 
-    function applySession(seed, name, remember, created) {
-        seedHex = Wiki.bytesToHex(seed)
-        userKey = Wiki.publicKey(seed)
-        userName = Wiki.engineAccountName(userKey)
+    function applySession(seedHexNext, key, name, remember, created) {
+        seedHex = seedHexNext
+        userKey = key
+        userName = Wiki.engineAccountName(key)
         if (remember) kvSet("session", JSON.stringify({ seedHex: seedHex, name: name }))
         else kvSet("session", "")
-        if (created && !userName) {
-            notice = "Could not create the account."
-            userName = ""
-            userKey = ""
-            seedHex = ""
-            return
-        }
-        if (!created && userName !== name) {
+        if (created) userName = userName || name
+        else if (userName !== name) {
             notice = "Incorrect username or password entered. Please try again."
             userName = ""
             userKey = ""
@@ -464,17 +458,16 @@ Item {
 
     function finishAuth() {
         try {
-            var seed = Wiki.deriveSeed(pendingName, pendingPassword)
+            var auth = Wiki.engineAuth(pendingName, pendingPassword)
             if (pendingAuth === "create") {
-                var key = Wiki.publicKey(seed)
-                if (Wiki.engineAccountTaken(key, pendingName)) {
+                if (Wiki.engineAccountTaken(auth.key, pendingName)) {
                     notice = "Username entered already in use. Please choose a different name."
                     busyText = ""
                     return
                 }
-                sendEnvelope(Wiki.sign(seed, { t: "account", name: pendingName }), "Account created")
-                applySession(seed, pendingName, pendingRemember, true)
-            } else applySession(seed, pendingName, pendingRemember, false)
+                sendEnvelope(Wiki.publishBody(auth.seedHex, { t: "account", name: pendingName }), "Account created")
+                applySession(auth.seedHex, auth.key, pendingName, pendingRemember, true)
+            } else applySession(auth.seedHex, auth.key, pendingName, pendingRemember, false)
         } catch (err) {
             notice = String(err)
         }
@@ -1042,7 +1035,7 @@ Item {
                     lineHeight: 1.35
                     lineHeightMode: Text.ProportionalHeight
                     text: root.article && root.article.html ? root.article.html : ""
-                    onLinkActivated: root.openLink(link)
+                    onLinkActivated: function (link) { root.openLink(link) }
                 }
                 Rectangle {
                     visible: root.article && root.article.categories && root.article.categories.length
@@ -1062,7 +1055,7 @@ Item {
                         font.pixelSize: 14
                         color: root.ink
                         text: root.categoryLine()
-                        onLinkActivated: root.openLink(link)
+                        onLinkActivated: function (link) { root.openLink(link) }
                     }
                 }
             }
@@ -1090,8 +1083,8 @@ Item {
                 return Wiki.engineDiff(original, full)
             }
             onCancelled: { root.editSection = ""; root.mode = "article"; root.renderCurrent() }
-            onPublished: root.publishEdit(root.currentTitle, text, summary, minor)
-            onOpenUrl: root.openLink(url)
+            onPublished: function (text, summary, minor) { root.publishEdit(root.currentTitle, text, summary, minor) }
+            onOpenUrl: function (url) { root.openLink(url) }
         }
     }
 
@@ -1108,10 +1101,10 @@ Item {
             creating: root.mode === "create"
             busy: root.busyText === "Please wait…"
             sitename: Wiki.SITENAME
-            onLoginRequested: root.login(name, password, remember)
-            onCreateRequested: root.createAccount(name, password, remember)
+            onLoginRequested: function (name, password, remember) { root.login(name, password, remember) }
+            onCreateRequested: function (name, password, remember) { root.createAccount(name, password, remember) }
             onSwitchMode: root.mode = root.mode === "create" ? "login" : "create"
-            onOpenUrl: root.openLink(url)
+            onOpenUrl: function (url) { root.openLink(url) }
         }
     }
 
@@ -1149,9 +1142,9 @@ Item {
             adminKey: root.adminKey
             snapshotCid: root.snapshotCid
             isAdmin: root.isAdmin
-            onOpenTitle: root.openTitle(name)
-            onSaveSettings: root.saveSettings(nextAdmin, nextSnapshot)
-            onSaveTrusted: root.publishTrust(editors)
+            onOpenTitle: function (name) { root.openTitle(name) }
+            onSaveSettings: function (nextAdmin, nextSnapshot) { root.saveSettings(nextAdmin, nextSnapshot) }
+            onSaveTrusted: function (editors) { root.publishTrust(editors) }
         }
     }
 }

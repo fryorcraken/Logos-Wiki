@@ -2521,6 +2521,7 @@ var WikiBag = function (list) {
     diffRows: () => diffRows,
     engineAccountName: () => engineAccountName,
     engineAccountTaken: () => engineAccountTaken,
+    engineAuth: () => engineAuth,
     engineCanEdit: () => engineCanEdit,
     engineDiff: () => engineDiff,
     engineFollowRedirect: () => engineFollowRedirect,
@@ -4751,9 +4752,6 @@ ${body.trim()}`;
     const rows = diffRows(before || "", after || "").replace(/<del\b[^>]*>/gi, '<font color="#8f0000">').replace(/<\/del>/gi, "</font>").replace(/<ins\b[^>]*>/gi, '<font color="#006400">').replace(/<\/ins>/gi, "</font>");
     return `<table width="100%" cellspacing="0" cellpadding="4" border="1" bordercolor="#a2a9b1">${rows}</table>`;
   }
-  function engineIsAdmin(key) {
-    return !!(key && session.admin && key.toLowerCase() === session.admin);
-  }
   function normalizeUsername(raw) {
     const s = String(raw || "").replace(/_/g, " ").replace(/\s+/g, " ").trim();
     if (!s) return "";
@@ -4768,6 +4766,13 @@ ${body.trim()}`;
   var session = new Wiki("");
   function resetEngine(admin) {
     session = new Wiki((admin || "").toLowerCase());
+  }
+  function engineIsAdmin(key) {
+    return !!(key && session.admin && key.toLowerCase() === session.admin);
+  }
+  function engineAuth(name, password) {
+    const seed = deriveSeed(name, password);
+    return { seedHex: bytesToHex2(seed), key: publicKey(seed) };
   }
   function ingestEnvelope(envelope) {
     return ingest(session, envelope);
@@ -4863,6 +4868,7 @@ var engineFollowRedirect = WikiEngine.engineFollowRedirect;
 var enginePreview = WikiEngine.enginePreview;
 var engineDiff = WikiEngine.engineDiff;
 var engineIsAdmin = WikiEngine.engineIsAdmin;
+var engineAuth = WikiEngine.engineAuth;
 var normalizeUsername = WikiEngine.normalizeUsername;
 var latestText = WikiEngine.latestText;
 var richText = WikiEngine.richText;

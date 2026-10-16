@@ -133,7 +133,7 @@ Item {
                 textFormat: Text.RichText
                 font.pixelSize: 14
                 text: '<a href="https://www.mediawiki.org/wiki/Special:MyLanguage/Help:Logging_in">Help with logging in</a>'
-                onLinkActivated: root.openUrl(link)
+                onLinkActivated: function (link) { root.openUrl(link) }
             }
 
             RowLayout {

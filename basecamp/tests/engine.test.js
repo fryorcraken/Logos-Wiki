@@ -142,4 +142,7 @@ test("permissions match trusted editors, user pages, and admin", async () => {
   W.ingestEnvelope(W.sign(bobSeed, { t: "edit", title: "Hello", text: "yes [[Main Page]]", summary: "n" }, 5));
   assert.equal(W.enginePageExists("Hello"), true);
   assert.match(W.engineDiff("a", "b"), /font color/);
+  const auth = W.engineAuth("Bob", "password-bob-test");
+  assert.equal(auth.key, bobKey);
+  assert.match(auth.seedHex, /^[0-9a-f]{64}$/);
 });
