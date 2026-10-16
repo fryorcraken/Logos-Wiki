@@ -33,7 +33,7 @@ Item {
     readonly property color paper: dark ? "#101418" : "#ffffff"
     readonly property color wash: dark ? "#202122" : "#f8f9fa"
     readonly property color header: dark ? "#27292d" : "#eaecf0"
-    readonly property bool noticeOk: !busyText.length && /logged in|account has been created|logged out/i.test(notice)
+    readonly property bool noticeOk: !busyText.length && /logged in|account has been created|logged out/i.test(authNotice || notice)
     readonly property color noticeFill: busyText.length ? (dark ? "#27292d" : "#eaecf0") : (noticeOk ? (dark ? "#274a32" : "#cef2e0") : (dark ? "#3b3420" : "#fef6e7"))
     readonly property string linkHex: dark ? "#88a3e8" : "#3366cc"
     property var tocItems: []
@@ -47,6 +47,7 @@ Item {
     property bool pendingRemember: false
     property bool dark: false
     property string authError: ""
+    property string authNotice: ""
     readonly property bool showToc: mode === "article" && tocItems && tocItems.length >= 4
     readonly property bool isAdmin: userKey !== "" && adminKey !== "" && userKey.toLowerCase() === adminKey.toLowerCase()
     readonly property string headingText: {
@@ -457,17 +458,22 @@ Item {
             return false
         }
         authError = ""
-        notice = created
+        authNotice = created
             ? ("Welcome, " + userName + "! Your account has been created.")
             : ("You are now logged in as " + userName + ".")
-        if (/^Special:(UserLogin|CreateAccount|UserLogout)$/i.test(currentTitle)) currentTitle = Wiki.MAIN_PAGE
+        notice = authNotice
+        if (/^Special:/i.test(currentTitle)) currentTitle = Wiki.MAIN_PAGE
         mode = "article"
-        Qt.callLater(renderCurrent)
+        Qt.callLater(function () {
+            renderCurrent()
+            notice = root.authNotice
+        })
         return true
     }
 
     function login(name, password, remember) {
         authError = ""
+        authNotice = ""
         pendingAuth = "login"
         pendingName = Wiki.normalizeUsername(name)
         pendingPassword = password
@@ -531,7 +537,8 @@ Item {
         userKey = ""
         seedHex = ""
         kvSet("session", "")
-        notice = "You are now logged out."
+        authNotice = "You are now logged out."
+        notice = authNotice
         mode = "account"
         refreshTabs()
     }
@@ -758,7 +765,7 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: (notice.length || busyText.length) ? Math.max(32, noticeLabel.implicitHeight + 16) : 0
+            Layout.preferredHeight: (authNotice.length || notice.length || busyText.length) ? Math.max(32, noticeLabel.implicitHeight + 16) : 0
             color: root.noticeFill
             visible: height > 0
             Text {
@@ -769,7 +776,7 @@ Item {
                 anchors.leftMargin: 16
                 anchors.rightMargin: 16
                 wrapMode: Text.Wrap
-                text: root.busyText || root.notice
+                text: root.busyText || root.authNotice || root.notice
                 color: root.ink
                 font.pixelSize: 13
             }
