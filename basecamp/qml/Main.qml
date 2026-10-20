@@ -48,6 +48,8 @@ Item {
     property bool dark: false
     property string authError: ""
     property string authNotice: ""
+    property var historyStack: []
+    readonly property bool canGoBack: historyStack && historyStack.length > 0
     readonly property bool showToc: mode === "article" && tocItems && tocItems.length >= 4
     readonly property bool isAdmin: userKey !== "" && adminKey !== "" && userKey.toLowerCase() === adminKey.toLowerCase()
     readonly property string headingText: {
@@ -166,10 +168,35 @@ Item {
         return heading ? "/* " + heading[2] + " */ " : ""
     }
 
-    function openTitle(title) {
+    function pushHistory() {
+        if (!currentTitle) return
+        var last = historyStack.length ? historyStack[historyStack.length - 1] : ""
+        if (last === currentTitle) return
+        historyStack = historyStack.concat([currentTitle])
+    }
+
+    function goBack() {
+        if (!historyStack.length) return
+        var prev = historyStack[historyStack.length - 1]
+        historyStack = historyStack.slice(0, -1)
+        openTitle(prev, true)
+    }
+
+    function openTitle(title, fromHistory) {
         if (!title) return
         var parsed = Wiki.parseTitle(title)
         if (parsed) title = parsed.full
+        if (title === "Special:Random") {
+            var titles = Wiki.engineTitles()
+            if (!titles.length) {
+                notice = "No pages yet."
+                return
+            }
+            title = titles[Math.floor(Math.random() * titles.length)]
+            parsed = Wiki.parseTitle(title)
+            if (parsed) title = parsed.full
+        }
+        if (!fromHistory && title !== currentTitle) pushHistory()
         if (/^Special:UserLogin$/i.test(title)) {
             currentTitle = title
             mode = userName ? "account" : "login"
@@ -183,15 +210,6 @@ Item {
         if (/^Special:UserLogout$/i.test(title)) {
             currentTitle = title
             mode = "account"
-            return
-        }
-        if (title === "Special:Random") {
-            var titles = Wiki.engineTitles()
-            if (!titles.length) {
-                notice = "No pages yet."
-                return
-            }
-            openTitle(titles[Math.floor(Math.random() * titles.length)])
             return
         }
         if (/^Special:/i.test(title)) {
@@ -734,6 +752,13 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.openTitle(Wiki.MAIN_PAGE)
                     }
+                }
+
+                WikiButton {
+                    dark: root.dark
+                    enabled: root.canGoBack
+                    text: "Back"
+                    onClicked: root.goBack()
                 }
 
                 Item { Layout.fillWidth: true }
