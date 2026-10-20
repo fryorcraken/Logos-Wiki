@@ -49,7 +49,9 @@ Item {
     property string authError: ""
     property string authNotice: ""
     property var historyStack: []
+    property var forwardStack: []
     readonly property bool canGoBack: historyStack && historyStack.length > 0
+    readonly property bool canGoForward: forwardStack && forwardStack.length > 0
     readonly property bool showToc: mode === "article" && tocItems && tocItems.length >= 4
     readonly property bool isAdmin: userKey !== "" && adminKey !== "" && userKey.toLowerCase() === adminKey.toLowerCase()
     readonly property string headingText: {
@@ -179,7 +181,16 @@ Item {
         if (!historyStack.length) return
         var prev = historyStack[historyStack.length - 1]
         historyStack = historyStack.slice(0, -1)
+        if (currentTitle) forwardStack = forwardStack.concat([currentTitle])
         openTitle(prev, true)
+    }
+
+    function goForward() {
+        if (!forwardStack.length) return
+        var next = forwardStack[forwardStack.length - 1]
+        forwardStack = forwardStack.slice(0, -1)
+        if (currentTitle) historyStack = historyStack.concat([currentTitle])
+        openTitle(next, true)
     }
 
     function openTitle(title, fromHistory) {
@@ -196,7 +207,10 @@ Item {
             parsed = Wiki.parseTitle(title)
             if (parsed) title = parsed.full
         }
-        if (!fromHistory && title !== currentTitle) pushHistory()
+        if (!fromHistory && title !== currentTitle) {
+            pushHistory()
+            forwardStack = []
+        }
         if (/^Special:UserLogin$/i.test(title)) {
             currentTitle = title
             mode = userName ? "account" : "login"
@@ -754,13 +768,6 @@ Item {
                     }
                 }
 
-                WikiButton {
-                    dark: root.dark
-                    enabled: root.canGoBack
-                    text: "Back"
-                    onClicked: root.goBack()
-                }
-
                 Item { Layout.fillWidth: true }
 
                 TextField {
@@ -785,6 +792,38 @@ Item {
                     dark: root.dark
                     text: "Search"
                     onClicked: if (searchField.text) root.openTitle(searchField.text)
+                }
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 40
+            color: root.paper
+
+            Rectangle {
+                anchors.bottom: parent.bottom
+                width: parent.width
+                height: 1
+                color: root.line
+            }
+
+            Row {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 12
+                spacing: 8
+                WikiButton {
+                    dark: root.dark
+                    enabled: root.canGoBack
+                    text: "Back"
+                    onClicked: root.goBack()
+                }
+                WikiButton {
+                    dark: root.dark
+                    enabled: root.canGoForward
+                    text: "Forward"
+                    onClicked: root.goForward()
                 }
             }
         }
