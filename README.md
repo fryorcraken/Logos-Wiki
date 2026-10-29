@@ -8,6 +8,40 @@ A MediaWiki-compatible wiki (Vector 2022 skin, wikitext, history, diffs, special
 - Logos Delivery relays new events and snapshot announcements between instances on a shared content topic.
 - Anyone can create an account and edit their own user pages. The admin decides who may edit everything else at `Special:TrustedEditors`.
 
+## Architecture
+
+There are two clients over one signed event log. The web wiki is a Node.js (Next.js) server you host; it is not a Logos module and drives a local Logos daemon. The Basecamp app is a Logos `ui_qml` module (`basecamp/metadata.json`) that depends on `storage_module` and `delivery_module`.
+
+```mermaid
+flowchart LR
+  subgraph host["Host running the web wiki"]
+    browser["Browser<br/>derives keys (scrypt), signs events"]
+    server["Next.js server<br/>verifies events, replays log into pages"]
+    log[("data/events.jsonl<br/>local event log")]
+    ctl["logosctl CLI"]
+    subgraph daemon["Logos daemon"]
+      storage["storage_module"]
+      delivery["delivery_module"]
+    end
+  end
+  browser -- "HTTP: signed events" --> server
+  server <--> log
+  server -- "spawns" --> ctl
+  ctl --> storage
+  ctl --> delivery
+  delivery <-- "content topic<br/>/logos-wiki/1/lan/json" --> net(("Logos Delivery network"))
+  storage <-- "files, snapshots (CID)" --> snet(("Logos Storage network"))
+  net <--> other["Other wiki instances"]
+  net <--> basecamp["Basecamp app (ui_qml module)<br/>uses the modules directly"]
+```
+
+- **Event log is the source of truth.** Every change is an ed25519-signed event. The server verifies each event, appends it to `WIKI_DATA/events.jsonl` and rebuilds page state by replaying the log.
+- **The web server needs a local Logos daemon.** The Node process has no Logos library. It runs `logosctl` (`LOGOSCTL`) to call `storage_module` and `delivery_module` in the daemon on the same machine. `install.sh` installs and starts both.
+- **Delivery relays events.** Accepted events and snapshot announcements are published on `WIKI_TOPIC`. Instances sharing a topic share a wiki.
+- **Storage holds files and snapshots.** Uploads are stored by CID. Every 15 minutes, if the log changed, the server uploads a snapshot of the log and announces its CID on the topic. Other instances (or `WIKI_SNAPSHOT_CID` on first start) download it and replay it.
+- **Without the daemon** (`LOGOS_DISABLED=1`) the wiki runs from the local log only: no sync, no snapshots, no file uploads.
+- **Basecamp** has no Node server and no `logosctl`. The `ui_qml` module calls the Delivery and Storage modules inside Basecamp and replays the same log. The JS in it (`qml/wiki.js`) is bundled from `basecamp/js` by esbuild. See [basecamp/README.md](basecamp/README.md).
+
 ## Install
 
 Requirements: Linux (x86_64 or arm64) or macOS (Apple Silicon), git, Node.js 22.6+.
